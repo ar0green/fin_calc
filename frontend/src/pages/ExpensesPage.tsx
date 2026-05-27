@@ -1,7 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Edit2, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
+import { DateInput } from "@/components/ui/DateInput";
+import { Select } from "@/components/ui/Select";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/Button";
@@ -13,12 +15,12 @@ import {
   useCreateExpense,
   useDeleteExpense,
   useExpenses,
-  useUpdateExpense
+  useUpdateExpense,
 } from "@/features/expenses/expenses.queries";
 import type {
   Expense,
   ExpenseType,
-  RecurrenceType
+  RecurrenceType,
 } from "@/features/expenses/expenses.types";
 import { formatDate, formatMoney } from "@/lib/format";
 
@@ -28,7 +30,7 @@ const expenseSchema = z.object({
   category: z.string().min(1, "Укажи категорию"),
   type: z.enum(["mandatory", "variable"]),
   recurrence_type: z.enum(["none", "monthly"]),
-  comment: z.string().optional()
+  comment: z.string().optional(),
 });
 
 type ExpenseFormValues = z.infer<typeof expenseSchema>;
@@ -46,7 +48,7 @@ function getDefaultFormValues(): ExpenseFormValues {
     category: DEFAULT_CATEGORY,
     type: "variable",
     recurrence_type: "none",
-    comment: ""
+    comment: "",
   };
 }
 
@@ -73,7 +75,7 @@ function mapExpenseToFormValues(expense: Expense): ExpenseFormValues {
     category: expense.category,
     type: expense.type,
     recurrence_type: expense.recurrence_type,
-    comment: expense.comment ?? ""
+    comment: expense.comment ?? "",
   };
 }
 
@@ -82,7 +84,7 @@ export function ExpensesPage() {
 
   const expensesQuery = useExpenses({
     limit: 100,
-    offset: 0
+    offset: 0,
   });
 
   const createExpenseMutation = useCreateExpense();
@@ -90,17 +92,41 @@ export function ExpensesPage() {
   const deleteExpenseMutation = useDeleteExpense();
 
   const {
+    control,
     register,
     handleSubmit,
     reset,
-    formState: { errors, isDirty }
+    formState: { errors, isDirty },
   } = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseSchema),
-    defaultValues: getDefaultFormValues()
+    defaultValues: getDefaultFormValues(),
   });
 
+  const EXPENSE_TYPE_OPTIONS = [
+    {
+      label: "Обязательный",
+      value: "mandatory",
+    },
+    {
+      label: "Переменный",
+      value: "variable",
+    },
+  ];
+
+  const RECURRENCE_TYPE_OPTIONS = [
+    {
+      label: "Нет",
+      value: "none",
+    },
+    {
+      label: "Ежемесячно",
+      value: "monthly",
+    },
+  ];
+
   const isEditMode = Boolean(editingExpense);
-  const isSubmitting = createExpenseMutation.isPending || updateExpenseMutation.isPending;
+  const isSubmitting =
+    createExpenseMutation.isPending || updateExpenseMutation.isPending;
 
   const resetToCreateMode = () => {
     setEditingExpense(null);
@@ -119,20 +145,20 @@ export function ExpensesPage() {
       category: values.category.trim(),
       type: values.type,
       recurrence_type: values.recurrence_type,
-      comment: values.comment?.trim() ? values.comment.trim() : null
+      comment: values.comment?.trim() ? values.comment.trim() : null,
     };
 
     if (editingExpense) {
       updateExpenseMutation.mutate(
         {
           expenseId: editingExpense.id,
-          payload
+          payload,
         },
         {
           onSuccess: () => {
             resetToCreateMode();
-          }
-        }
+          },
+        },
       );
 
       return;
@@ -141,7 +167,7 @@ export function ExpensesPage() {
     createExpenseMutation.mutate(payload, {
       onSuccess: () => {
         reset(getDefaultFormValues());
-      }
+      },
     });
   };
 
@@ -166,7 +192,7 @@ export function ExpensesPage() {
   const expenses = expensesQuery.data ?? [];
   const totalExpenses = expenses.reduce(
     (sum, expense) => sum + Number(expense.amount),
-    0
+    0,
   );
 
   return (
@@ -233,11 +259,17 @@ export function ExpensesPage() {
               {...register("amount")}
             />
 
-            <Input
-              label="Дата"
-              type="date"
-              error={errors.date?.message}
-              {...register("date")}
+            <Controller
+              name="date"
+              control={control}
+              render={({ field }) => (
+                <DateInput
+                  label="Дата"
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={errors.date?.message}
+                />
+              )}
             />
 
             <Input
@@ -247,41 +279,19 @@ export function ExpensesPage() {
               {...register("category")}
             />
 
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Тип расхода
-              </span>
-              <select
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-                {...register("type")}
-              >
-                <option value="mandatory">Обязательный</option>
-                <option value="variable">Переменный</option>
-              </select>
-              {errors.type?.message ? (
-                <span className="mt-1 block text-sm text-red-600">
-                  {errors.type.message}
-                </span>
-              ) : null}
-            </label>
+            <Select
+              label="Тип расхода"
+              options={EXPENSE_TYPE_OPTIONS}
+              error={errors.type?.message}
+              {...register("type")}
+            />
 
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Повторяемость
-              </span>
-              <select
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-                {...register("recurrence_type")}
-              >
-                <option value="none">Нет</option>
-                <option value="monthly">Ежемесячно</option>
-              </select>
-              {errors.recurrence_type?.message ? (
-                <span className="mt-1 block text-sm text-red-600">
-                  {errors.recurrence_type.message}
-                </span>
-              ) : null}
-            </label>
+            <Select
+              label="Повторяемость"
+              options={RECURRENCE_TYPE_OPTIONS}
+              error={errors.recurrence_type?.message}
+              {...register("recurrence_type")}
+            />
 
             <Input
               label="Комментарий"
@@ -311,12 +321,16 @@ export function ExpensesPage() {
                 {isEditMode ? (
                   <>
                     <Save className="h-4 w-4" />
-                    {updateExpenseMutation.isPending ? "Сохраняем..." : "Сохранить"}
+                    {updateExpenseMutation.isPending
+                      ? "Сохраняем..."
+                      : "Сохранить"}
                   </>
                 ) : (
                   <>
                     <Plus className="h-4 w-4" />
-                    {createExpenseMutation.isPending ? "Добавляем..." : "Добавить"}
+                    {createExpenseMutation.isPending
+                      ? "Добавляем..."
+                      : "Добавить"}
                   </>
                 )}
               </Button>
@@ -388,7 +402,8 @@ export function ExpensesPage() {
 
                 <tbody className="divide-y divide-slate-200 bg-white">
                   {expenses.map((expense) => {
-                    const isCurrentlyEditing = editingExpense?.id === expense.id;
+                    const isCurrentlyEditing =
+                      editingExpense?.id === expense.id;
 
                     return (
                       <tr
@@ -442,7 +457,7 @@ export function ExpensesPage() {
                               disabled={deleteExpenseMutation.isPending}
                               onClick={() => {
                                 const confirmed = window.confirm(
-                                  "Удалить этот расход?"
+                                  "Удалить этот расход?",
                                 );
 
                                 if (confirmed) {
@@ -451,7 +466,7 @@ export function ExpensesPage() {
                                       if (editingExpense?.id === expense.id) {
                                         resetToCreateMode();
                                       }
-                                    }
+                                    },
                                   });
                                 }
                               }}

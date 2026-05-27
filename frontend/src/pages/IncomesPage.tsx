@@ -1,7 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Edit2, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
+import { DateInput } from "@/components/ui/DateInput";
+import { Select } from "@/components/ui/Select";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/Button";
@@ -13,7 +15,7 @@ import {
   useCreateIncome,
   useDeleteIncome,
   useIncomes,
-  useUpdateIncome
+  useUpdateIncome,
 } from "@/features/incomes/incomes.queries";
 import type { Income, IncomeType } from "@/features/incomes/incomes.types";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -23,7 +25,7 @@ const incomeSchema = z.object({
   date: z.string().min(1, "Укажи дату"),
   category: z.string().min(1, "Укажи категорию"),
   type: z.enum(["regular", "irregular"]),
-  comment: z.string().optional()
+  comment: z.string().optional(),
 });
 
 type IncomeFormValues = z.infer<typeof incomeSchema>;
@@ -40,7 +42,7 @@ function getDefaultFormValues(): IncomeFormValues {
     date: getTodayInputValue(),
     category: DEFAULT_CATEGORY,
     type: "regular",
-    comment: ""
+    comment: "",
   };
 }
 
@@ -58,7 +60,7 @@ function mapIncomeToFormValues(income: Income): IncomeFormValues {
     date: income.date,
     category: income.category,
     type: income.type,
-    comment: income.comment ?? ""
+    comment: income.comment ?? "",
   };
 }
 
@@ -67,7 +69,7 @@ export function IncomesPage() {
 
   const incomesQuery = useIncomes({
     limit: 100,
-    offset: 0
+    offset: 0,
   });
 
   const createIncomeMutation = useCreateIncome();
@@ -75,17 +77,30 @@ export function IncomesPage() {
   const deleteIncomeMutation = useDeleteIncome();
 
   const {
+    control,
     register,
     handleSubmit,
     reset,
-    formState: { errors, isDirty }
+    formState: { errors, isDirty },
   } = useForm<IncomeFormValues>({
     resolver: zodResolver(incomeSchema),
-    defaultValues: getDefaultFormValues()
+    defaultValues: getDefaultFormValues(),
   });
 
+  const INCOME_TYPE_OPTIONS = [
+    {
+      label: "Регулярный",
+      value: "regular",
+    },
+    {
+      label: "Нерегулярный",
+      value: "irregular",
+    },
+  ];
+
   const isEditMode = Boolean(editingIncome);
-  const isSubmitting = createIncomeMutation.isPending || updateIncomeMutation.isPending;
+  const isSubmitting =
+    createIncomeMutation.isPending || updateIncomeMutation.isPending;
 
   const resetToCreateMode = () => {
     setEditingIncome(null);
@@ -103,20 +118,20 @@ export function IncomesPage() {
       date: values.date,
       category: values.category.trim(),
       type: values.type,
-      comment: values.comment?.trim() ? values.comment.trim() : null
+      comment: values.comment?.trim() ? values.comment.trim() : null,
     };
 
     if (editingIncome) {
       updateIncomeMutation.mutate(
         {
           incomeId: editingIncome.id,
-          payload
+          payload,
         },
         {
           onSuccess: () => {
             resetToCreateMode();
-          }
-        }
+          },
+        },
       );
 
       return;
@@ -125,7 +140,7 @@ export function IncomesPage() {
     createIncomeMutation.mutate(payload, {
       onSuccess: () => {
         reset(getDefaultFormValues());
-      }
+      },
     });
   };
 
@@ -206,11 +221,17 @@ export function IncomesPage() {
               {...register("amount")}
             />
 
-            <Input
-              label="Дата"
-              type="date"
-              error={errors.date?.message}
-              {...register("date")}
+            <Controller
+              name="date"
+              control={control}
+              render={({ field }) => (
+                <DateInput
+                  label="Дата"
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={errors.date?.message}
+                />
+              )}
             />
 
             <Input
@@ -220,23 +241,12 @@ export function IncomesPage() {
               {...register("category")}
             />
 
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Тип
-              </span>
-              <select
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-                {...register("type")}
-              >
-                <option value="regular">Регулярный</option>
-                <option value="irregular">Нерегулярный</option>
-              </select>
-              {errors.type?.message ? (
-                <span className="mt-1 block text-sm text-red-600">
-                  {errors.type.message}
-                </span>
-              ) : null}
-            </label>
+            <Select
+              label="Тип"
+              options={INCOME_TYPE_OPTIONS}
+              error={errors.type?.message}
+              {...register("type")}
+            />
 
             <Input
               label="Комментарий"
@@ -266,12 +276,16 @@ export function IncomesPage() {
                 {isEditMode ? (
                   <>
                     <Save className="h-4 w-4" />
-                    {updateIncomeMutation.isPending ? "Сохраняем..." : "Сохранить"}
+                    {updateIncomeMutation.isPending
+                      ? "Сохраняем..."
+                      : "Сохранить"}
                   </>
                 ) : (
                   <>
                     <Plus className="h-4 w-4" />
-                    {createIncomeMutation.isPending ? "Добавляем..." : "Добавить"}
+                    {createIncomeMutation.isPending
+                      ? "Добавляем..."
+                      : "Добавить"}
                   </>
                 )}
               </Button>
@@ -390,7 +404,7 @@ export function IncomesPage() {
                               disabled={deleteIncomeMutation.isPending}
                               onClick={() => {
                                 const confirmed = window.confirm(
-                                  "Удалить этот доход?"
+                                  "Удалить этот доход?",
                                 );
 
                                 if (confirmed) {
@@ -399,7 +413,7 @@ export function IncomesPage() {
                                       if (editingIncome?.id === income.id) {
                                         resetToCreateMode();
                                       }
-                                    }
+                                    },
                                   });
                                 }
                               }}

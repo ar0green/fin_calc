@@ -1,10 +1,10 @@
 import type { ElementType } from "react";
+import { useState } from "react";
 import {
   BarChart3,
   CreditCard,
   PiggyBank,
   Receipt,
-  TrendingDown,
   TrendingUp
 } from "lucide-react";
 
@@ -14,21 +14,18 @@ import { IncomeExpenseChart } from "@/components/charts/IncomeExpenseChart";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageState } from "@/components/ui/PageState";
+import { PeriodFilter } from "@/components/ui/PeriodFilter";
 import {
   useAnalyticsDebtDynamics,
   useAnalyticsOverview,
   useExpenseStructure,
   useIncomeExpenseByMonth
 } from "@/features/analytics/analytics.queries";
-import { formatMoney, formatPercent } from "@/lib/format";
+import { formatDate, formatMoney, formatPercent } from "@/lib/format";
 
-const ANALYTICS_DATE_FROM = "2026-01-01";
-const ANALYTICS_DATE_TO = "2026-04-30";
+const DEFAULT_DATE_FROM = "2026-01-01";
+const DEFAULT_DATE_TO = "2026-04-30";
 
-const CURRENT_MONTH_FROM = "2026-04-01";
-const CURRENT_MONTH_TO = "2026-04-30";
-
-const DEBT_START_DATE = "2026-04-01";
 const DEBT_STRATEGY = "avalanche";
 const DEBT_EXTRA_PAYMENT = 15000;
 const DEBT_MAX_MONTHS = 120;
@@ -62,17 +59,14 @@ function MetricCard({ title, value, description, icon: Icon }: MetricCardProps) 
 }
 
 export function AnalyticsPage() {
-  const overviewQuery = useAnalyticsOverview(CURRENT_MONTH_FROM, CURRENT_MONTH_TO);
-  const incomeExpenseQuery = useIncomeExpenseByMonth(
-    ANALYTICS_DATE_FROM,
-    ANALYTICS_DATE_TO
-  );
-  const expenseStructureQuery = useExpenseStructure(
-    CURRENT_MONTH_FROM,
-    CURRENT_MONTH_TO
-  );
+  const [dateFrom, setDateFrom] = useState(DEFAULT_DATE_FROM);
+  const [dateTo, setDateTo] = useState(DEFAULT_DATE_TO);
+
+  const overviewQuery = useAnalyticsOverview(dateFrom, dateTo);
+  const incomeExpenseQuery = useIncomeExpenseByMonth(dateFrom, dateTo);
+  const expenseStructureQuery = useExpenseStructure(dateFrom, dateTo);
   const debtDynamicsQuery = useAnalyticsDebtDynamics(
-    DEBT_START_DATE,
+    dateFrom,
     DEBT_STRATEGY,
     DEBT_EXTRA_PAYMENT,
     DEBT_MAX_MONTHS
@@ -83,6 +77,12 @@ export function AnalyticsPage() {
     incomeExpenseQuery.isLoading ||
     expenseStructureQuery.isLoading ||
     debtDynamicsQuery.isLoading;
+
+  const isFetching =
+    overviewQuery.isFetching ||
+    incomeExpenseQuery.isFetching ||
+    expenseStructureQuery.isFetching ||
+    debtDynamicsQuery.isFetching;
 
   const isError =
     overviewQuery.isError ||
@@ -133,20 +133,32 @@ export function AnalyticsPage() {
         </div>
 
         <div className="rounded-xl bg-white px-4 py-2 text-sm text-slate-600 ring-1 ring-slate-200">
-          Период: {ANALYTICS_DATE_FROM} — {ANALYTICS_DATE_TO}
+          Период: {formatDate(dateFrom)} — {formatDate(dateTo)}
         </div>
       </div>
 
+      <PeriodFilter
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateFromChange={setDateFrom}
+        onDateToChange={setDateTo}
+        disabled={isFetching}
+      />
+
+      {isFetching ? (
+        <div className="text-sm text-slate-500">Обновляем аналитику...</div>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          title="Доходы за месяц"
+          title="Доходы за период"
           value={formatMoney(overview.total_income)}
-          description="Текущий аналитический месяц"
+          description="Все доходы выбранного периода"
           icon={TrendingUp}
         />
 
         <MetricCard
-          title="Расходы за месяц"
+          title="Расходы за период"
           value={formatMoney(overview.total_expenses)}
           description="Обязательные + переменные"
           icon={Receipt}
@@ -196,7 +208,7 @@ export function AnalyticsPage() {
               ? formatPercent(overview.debt_to_income_ratio_percent)
               : "—"
           }
-          description="Долг относительно месячного дохода"
+          description="Долг относительно дохода периода"
           icon={BarChart3}
         />
       </div>
@@ -207,7 +219,7 @@ export function AnalyticsPage() {
             Доходы / расходы / cashflow
           </h3>
           <p className="text-sm text-slate-500">
-            Помесячная динамика за аналитический период.
+            Помесячная динамика за выбранный период.
           </p>
         </div>
 
@@ -228,7 +240,7 @@ export function AnalyticsPage() {
               Структура расходов
             </h3>
             <p className="text-sm text-slate-500">
-              Расходы по категориям за текущий месяц.
+              Расходы по категориям за выбранный период.
             </p>
           </div>
 
@@ -326,7 +338,7 @@ export function AnalyticsPage() {
               <div className="text-sm text-slate-500">Дата закрытия</div>
               <div className="mt-1 text-xl font-bold text-slate-950">
                 {debtDynamics.paid_off && debtDynamics.payoff_date
-                  ? debtDynamics.payoff_date
+                  ? formatDate(debtDynamics.payoff_date)
                   : "Не закрывается"}
               </div>
             </div>

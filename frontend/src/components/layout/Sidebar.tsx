@@ -42,9 +42,19 @@ const navItems = [
   }
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+  className?: string;
+}
+
+export function Sidebar({ onNavigate, className }: SidebarProps) {
   return (
-    <aside className="hidden min-h-screen w-64 border-r border-slate-200 bg-white px-4 py-5 lg:block">
+    <aside
+      className={clsx(
+        "min-h-screen w-64 border-r border-slate-200 bg-white px-4 py-5",
+        className
+      )}
+    >
       <div className="mb-8 px-2">
         <div className="text-lg font-bold text-slate-950">Finance Calculator</div>
         <div className="text-sm text-slate-500">Personal finance MVP</div>
@@ -58,6 +68,7 @@ export function Sidebar() {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={onNavigate}
               className={({ isActive }) =>
                 clsx(
                   "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition",

@@ -2,6 +2,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Edit2, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Select } from "@/components/ui/Select";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/Button";
@@ -13,10 +15,33 @@ import {
   useCreateDebt,
   useDebts,
   useDeleteDebt,
-  useUpdateDebt
+  useUpdateDebt,
 } from "@/features/debts/debts.queries";
 import type { Debt } from "@/features/debts/debts.types";
 import { formatMoney, formatPercent } from "@/lib/format";
+
+const DEBT_TYPE_OPTIONS = [
+  {
+    label: "Кредит",
+    value: "loan",
+  },
+  {
+    label: "Кредитная карта",
+    value: "credit_card",
+  },
+  {
+    label: "Личный займ",
+    value: "personal_loan",
+  },
+  {
+    label: "Ипотека",
+    value: "mortgage",
+  },
+  {
+    label: "Автокредит",
+    value: "car_loan",
+  },
+];
 
 const debtSchema = z.object({
   name: z.string().min(1, "Укажи название долга"),
@@ -41,7 +66,7 @@ const debtSchema = z.object({
     .min(1, "Минимум 1")
     .max(1000, "Максимум 1000"),
   is_active: z.boolean(),
-  comment: z.string().optional()
+  comment: z.string().optional(),
 });
 
 type DebtFormValues = z.infer<typeof debtSchema>;
@@ -57,7 +82,7 @@ function getDefaultFormValues(): DebtFormValues {
     early_repayment_allowed: true,
     payoff_priority: 100,
     is_active: true,
-    comment: ""
+    comment: "",
   };
 }
 
@@ -72,7 +97,7 @@ function mapDebtToFormValues(debt: Debt): DebtFormValues {
     early_repayment_allowed: debt.early_repayment_allowed,
     payoff_priority: debt.payoff_priority,
     is_active: debt.is_active,
-    comment: debt.comment ?? ""
+    comment: debt.comment ?? "",
   };
 }
 
@@ -82,7 +107,7 @@ function debtTypeLabel(type: string): string {
     credit_card: "Кредитная карта",
     personal_loan: "Личный займ",
     mortgage: "Ипотека",
-    car_loan: "Автокредит"
+    car_loan: "Автокредит",
   };
 
   return labels[type] ?? type;
@@ -93,7 +118,7 @@ export function DebtsPage() {
 
   const debtsQuery = useDebts({
     limit: 100,
-    offset: 0
+    offset: 0,
   });
 
   const createDebtMutation = useCreateDebt();
@@ -104,14 +129,15 @@ export function DebtsPage() {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isDirty }
+    formState: { errors, isDirty },
   } = useForm<DebtFormValues>({
     resolver: zodResolver(debtSchema),
-    defaultValues: getDefaultFormValues()
+    defaultValues: getDefaultFormValues(),
   });
 
   const isEditMode = Boolean(editingDebt);
-  const isSubmitting = createDebtMutation.isPending || updateDebtMutation.isPending;
+  const isSubmitting =
+    createDebtMutation.isPending || updateDebtMutation.isPending;
 
   const resetToCreateMode = () => {
     setEditingDebt(null);
@@ -134,20 +160,20 @@ export function DebtsPage() {
       early_repayment_allowed: values.early_repayment_allowed,
       payoff_priority: values.payoff_priority,
       is_active: values.is_active,
-      comment: values.comment?.trim() ? values.comment.trim() : null
+      comment: values.comment?.trim() ? values.comment.trim() : null,
     };
 
     if (editingDebt) {
       updateDebtMutation.mutate(
         {
           debtId: editingDebt.id,
-          payload
+          payload,
         },
         {
           onSuccess: () => {
             resetToCreateMode();
-          }
-        }
+          },
+        },
       );
 
       return;
@@ -156,7 +182,7 @@ export function DebtsPage() {
     createDebtMutation.mutate(payload, {
       onSuccess: () => {
         reset(getDefaultFormValues());
-      }
+      },
     });
   };
 
@@ -183,12 +209,12 @@ export function DebtsPage() {
 
   const totalActiveBalance = activeDebts.reduce(
     (sum, debt) => sum + Number(debt.principal_balance),
-    0
+    0,
   );
 
   const totalMinimumPayments = activeDebts.reduce(
     (sum, debt) => sum + Number(debt.minimum_monthly_payment),
-    0
+    0,
   );
 
   return (
@@ -263,7 +289,8 @@ export function DebtsPage() {
             <div className="mb-4 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700">
               Редактируется:{" "}
               <span className="font-medium text-slate-950">
-                {editingDebt.name} · {formatMoney(editingDebt.principal_balance)}
+                {editingDebt.name} ·{" "}
+                {formatMoney(editingDebt.principal_balance)}
               </span>
             </div>
           ) : null}
@@ -276,26 +303,12 @@ export function DebtsPage() {
               {...register("name")}
             />
 
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Тип долга
-              </span>
-              <select
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-                {...register("debt_type")}
-              >
-                <option value="loan">Кредит</option>
-                <option value="credit_card">Кредитная карта</option>
-                <option value="personal_loan">Личный займ</option>
-                <option value="mortgage">Ипотека</option>
-                <option value="car_loan">Автокредит</option>
-              </select>
-              {errors.debt_type?.message ? (
-                <span className="mt-1 block text-sm text-red-600">
-                  {errors.debt_type.message}
-                </span>
-              ) : null}
-            </label>
+            <Select
+              label="Тип долга"
+              options={DEBT_TYPE_OPTIONS}
+              error={errors.debt_type?.message}
+              {...register("debt_type")}
+            />
 
             <Input
               label="Текущий остаток"
@@ -344,23 +357,17 @@ export function DebtsPage() {
               {...register("payoff_priority")}
             />
 
-            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-slate-300"
-                {...register("early_repayment_allowed")}
-              />
-              Досрочное погашение разрешено
-            </label>
+            <Checkbox
+              label="Досрочное погашение разрешено"
+              description="Этот флаг позже будет учитываться в стратегиях погашения."
+              {...register("early_repayment_allowed")}
+            />
 
-            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-slate-300"
-                {...register("is_active")}
-              />
-              Активный долг
-            </label>
+            <Checkbox
+              label="Активный долг"
+              description="Только активные долги участвуют в расчётах и прогнозах."
+              {...register("is_active")}
+            />
 
             <Input
               label="Комментарий"
@@ -390,7 +397,9 @@ export function DebtsPage() {
                 {isEditMode ? (
                   <>
                     <Save className="h-4 w-4" />
-                    {updateDebtMutation.isPending ? "Сохраняем..." : "Сохранить"}
+                    {updateDebtMutation.isPending
+                      ? "Сохраняем..."
+                      : "Сохранить"}
                   </>
                 ) : (
                   <>
@@ -542,9 +551,8 @@ export function DebtsPage() {
                               className="h-9 px-3"
                               disabled={deleteDebtMutation.isPending}
                               onClick={() => {
-                                const confirmed = window.confirm(
-                                  "Удалить этот долг?"
-                                );
+                                const confirmed =
+                                  window.confirm("Удалить этот долг?");
 
                                 if (confirmed) {
                                   deleteDebtMutation.mutate(debt.id, {
@@ -552,7 +560,7 @@ export function DebtsPage() {
                                       if (editingDebt?.id === debt.id) {
                                         resetToCreateMode();
                                       }
-                                    }
+                                    },
                                   });
                                 }
                               }}

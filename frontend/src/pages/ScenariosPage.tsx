@@ -1,7 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Calculator, LineChart, Play, TrendingDown } from "lucide-react";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
+import { DateInput } from "@/components/ui/DateInput";
+import { Select } from "@/components/ui/Select";
 import { z } from "zod";
 
 import { DebtProjectionChart } from "@/components/charts/DebtProjectionChart";
@@ -12,13 +14,13 @@ import { Input } from "@/components/ui/Input";
 import { PageState } from "@/components/ui/PageState";
 import {
   useDebtStrategyCalculation,
-  useScenarioCompare
+  useScenarioCompare,
 } from "@/features/scenarios/scenarios.queries";
 import type {
   DebtStrategyType,
-  ScenarioCompareResult
+  ScenarioCompareResult,
 } from "@/features/scenarios/scenarios.types";
-import { formatMoney } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 
 const scenarioFormSchema = z.object({
   start_date: z.string().min(1, "Укажи дату старта"),
@@ -30,7 +32,7 @@ const scenarioFormSchema = z.object({
     .int("Горизонт должен быть целым числом")
     .min(1, "Минимум 1 месяц")
     .max(1200, "Максимум 1200 месяцев"),
-  projection_strategy_type: z.enum(["snowball", "avalanche"])
+  projection_strategy_type: z.enum(["snowball", "avalanche"]),
 });
 
 type ScenarioFormValues = z.infer<typeof scenarioFormSchema>;
@@ -47,32 +49,24 @@ function strategyLabel(strategy: DebtStrategyType): string {
   return "Avalanche";
 }
 
-function formatPayoffDate(value: string | null): string {
-  if (!value) {
-    return "—";
-  }
-
-  return new Intl.DateTimeFormat("ru-RU").format(new Date(value));
-}
-
 function buildComparisonScenarios(extraMonthlyPayment: number) {
   return [
     {
       strategy_type: "snowball" as const,
-      extra_monthly_payment: 0
+      extra_monthly_payment: 0,
     },
     {
       strategy_type: "snowball" as const,
-      extra_monthly_payment: extraMonthlyPayment
+      extra_monthly_payment: extraMonthlyPayment,
     },
     {
       strategy_type: "avalanche" as const,
-      extra_monthly_payment: 0
+      extra_monthly_payment: 0,
     },
     {
       strategy_type: "avalanche" as const,
-      extra_monthly_payment: extraMonthlyPayment
-    }
+      extra_monthly_payment: extraMonthlyPayment,
+    },
   ];
 }
 
@@ -105,7 +99,9 @@ function ScenarioResultCard({ result, isBaseline }: ScenarioResultCardProps) {
         <div>
           <div className="text-xs text-slate-500">Дата закрытия</div>
           <div className="text-lg font-bold text-slate-950">
-            {result.paid_off ? formatPayoffDate(result.payoff_date) : "Не закрывается"}
+            {result.paid_off
+              ? formatDate(result.payoff_date)
+              : "Не закрывается"}
           </div>
         </div>
 
@@ -148,19 +144,31 @@ export function ScenariosPage() {
   const debtStrategyMutation = useDebtStrategyCalculation();
 
   const {
+    control,
     register,
     handleSubmit,
     watch,
-    formState: { errors }
+    formState: { errors },
   } = useForm<ScenarioFormValues>({
     resolver: zodResolver(scenarioFormSchema),
     defaultValues: {
       start_date: getDefaultStartDate(),
       extra_monthly_payment: 15000,
       max_months: 240,
-      projection_strategy_type: "avalanche"
-    }
+      projection_strategy_type: "avalanche",
+    },
   });
+
+  const STRATEGY_OPTIONS = [
+    {
+      label: "Avalanche",
+      value: "avalanche",
+    },
+    {
+      label: "Snowball",
+      value: "snowball",
+    },
+  ];
 
   const watchedValues = watch();
 
@@ -170,14 +178,14 @@ export function ScenariosPage() {
     scenarioCompareMutation.mutate({
       start_date: values.start_date,
       max_months: values.max_months,
-      scenarios
+      scenarios,
     });
 
     debtStrategyMutation.mutate({
       strategy_type: values.projection_strategy_type,
       start_date: values.start_date,
       extra_monthly_payment: values.extra_monthly_payment,
-      max_months: values.max_months
+      max_months: values.max_months,
     });
   };
 
@@ -186,7 +194,7 @@ export function ScenariosPage() {
       start_date: getDefaultStartDate(),
       extra_monthly_payment: 15000,
       max_months: 240,
-      projection_strategy_type: "avalanche"
+      projection_strategy_type: "avalanche",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -223,11 +231,17 @@ export function ScenariosPage() {
           className="grid gap-4 md:grid-cols-5"
           onSubmit={handleSubmit(runCalculations)}
         >
-          <Input
-            label="Дата старта"
-            type="date"
-            error={errors.start_date?.message}
-            {...register("start_date")}
+          <Controller
+            name="start_date"
+            control={control}
+            render={({ field }) => (
+              <DateInput
+                label="Дата старта"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.start_date?.message}
+              />
+            )}
           />
 
           <Input
@@ -249,23 +263,12 @@ export function ScenariosPage() {
             {...register("max_months")}
           />
 
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
-              Стратегия графика
-            </span>
-            <select
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-              {...register("projection_strategy_type")}
-            >
-              <option value="avalanche">Avalanche</option>
-              <option value="snowball">Snowball</option>
-            </select>
-            {errors.projection_strategy_type?.message ? (
-              <span className="mt-1 block text-sm text-red-600">
-                {errors.projection_strategy_type.message}
-              </span>
-            ) : null}
-          </label>
+          <Select
+            label="Стратегия графика"
+            options={STRATEGY_OPTIONS}
+            error={errors.projection_strategy_type?.message}
+            {...register("projection_strategy_type")}
+          />
 
           <div className="flex items-end">
             <Button type="submit" className="w-full gap-2" disabled={isLoading}>
@@ -310,7 +313,8 @@ export function ScenariosPage() {
                 Экономия относительно baseline
               </h3>
               <p className="text-sm text-slate-500">
-                Baseline — первый сценарий в сравнении: snowball без доп. платежа.
+                Baseline — первый сценарий в сравнении: snowball без доп.
+                платежа.
               </p>
             </div>
 
@@ -422,7 +426,7 @@ export function ScenariosPage() {
                 <div className="text-sm text-slate-500">Дата закрытия</div>
                 <div className="mt-1 text-xl font-bold text-slate-950">
                   {strategy.paid_off
-                    ? formatPayoffDate(strategy.payoff_date)
+                    ? formatDate(strategy.payoff_date)
                     : "Не закрывается"}
                 </div>
               </div>
@@ -511,7 +515,7 @@ export function ScenariosPage() {
                     </td>
 
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-700">
-                      {formatPayoffDate(debt.payoff_date)}
+                      {formatDate(debt.payoff_date)}
                     </td>
 
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-semibold text-slate-950">

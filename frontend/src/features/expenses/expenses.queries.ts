@@ -11,6 +11,7 @@ import type {
   CreateExpensePayload,
   UpdateExpensePayload
 } from "@/features/expenses/expenses.types";
+import { notify } from "@/lib/toast";
 
 export const expensesQueryKeys = {
   all: ["expenses"] as const,
@@ -45,6 +46,10 @@ export function useCreateExpense() {
     mutationFn: (payload: CreateExpensePayload) => createExpense(payload),
     onSuccess: async () => {
       await invalidateFinanceData(queryClient);
+      notify.success("Расход добавлен");
+    },
+    onError: () => {
+      notify.error("Не удалось добавить расход");
     }
   });
 }
@@ -62,6 +67,10 @@ export function useUpdateExpense() {
     }) => updateExpense(expenseId, payload),
     onSuccess: async () => {
       await invalidateFinanceData(queryClient);
+      notify.success("Расход обновлён");
+    },
+    onError: () => {
+      notify.error("Не удалось обновить расход");
     }
   });
 }
@@ -73,6 +82,10 @@ export function useDeleteExpense() {
     mutationFn: (expenseId: number) => deleteExpense(expenseId),
     onSuccess: async () => {
       await invalidateFinanceData(queryClient);
+      notify.success("Расход удалён");
+    },
+    onError: () => {
+      notify.error("Не удалось удалить расход");
     }
   });
 }

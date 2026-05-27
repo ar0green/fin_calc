@@ -11,6 +11,7 @@ import type {
   CreateDebtPayload,
   UpdateDebtPayload
 } from "@/features/debts/debts.types";
+import { notify } from "@/lib/toast";
 
 export const debtsQueryKeys = {
   all: ["debts"] as const,
@@ -48,6 +49,10 @@ export function useCreateDebt() {
     mutationFn: (payload: CreateDebtPayload) => createDebt(payload),
     onSuccess: async () => {
       await invalidateFinanceData(queryClient);
+      notify.success("Долг добавлен");
+    },
+    onError: () => {
+      notify.error("Не удалось добавить долг");
     }
   });
 }
@@ -65,6 +70,10 @@ export function useUpdateDebt() {
     }) => updateDebt(debtId, payload),
     onSuccess: async () => {
       await invalidateFinanceData(queryClient);
+      notify.success("Долг обновлён");
+    },
+    onError: () => {
+      notify.error("Не удалось обновить долг");
     }
   });
 }
@@ -76,6 +85,10 @@ export function useDeleteDebt() {
     mutationFn: (debtId: number) => deleteDebt(debtId),
     onSuccess: async () => {
       await invalidateFinanceData(queryClient);
+      notify.success("Долг удалён");
+    },
+    onError: () => {
+      notify.error("Не удалось удалить долг");
     }
   });
 }

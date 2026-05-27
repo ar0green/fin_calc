@@ -1,3 +1,5 @@
+import type { ElementType } from "react";
+import { useMemo, useState } from "react";
 import { AlertCircle, CreditCard, PiggyBank, Receipt, TrendingUp } from "lucide-react";
 
 import { DebtDynamicsChart } from "@/components/charts/DebtDynamicsChart";
@@ -5,24 +7,27 @@ import { IncomeExpenseChart } from "@/components/charts/IncomeExpenseChart";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageState } from "@/components/ui/PageState";
+import { PeriodFilter } from "@/components/ui/PeriodFilter";
 import {
   useAnalyticsOverview,
   useDebtDynamics,
   useIncomeExpenseByMonth
 } from "@/features/dashboard/dashboard.queries";
-import { formatMoney, formatPercent } from "@/lib/format";
+import { formatDate, formatMoney, formatPercent } from "@/lib/format";
 
-const DASHBOARD_DATE_FROM = "2026-04-01";
-const DASHBOARD_DATE_TO = "2026-04-30";
+const DEFAULT_DATE_FROM = "2026-04-01";
+const DEFAULT_DATE_TO = "2026-04-30";
 
-const CHART_DATE_FROM = "2026-01-01";
-const CHART_DATE_TO = "2026-04-30";
+function getMonthStart(value: string): string {
+  const date = new Date(value);
+  return new Date(date.getFullYear(), date.getMonth(), 1).toISOString().slice(0, 10);
+}
 
 interface MetricCardProps {
   title: string;
   value: string;
   description?: string;
-  icon: React.ElementType;
+  icon: ElementType;
 }
 
 function MetricCard({ title, value, description, icon: Icon }: MetricCardProps) {
@@ -47,14 +52,25 @@ function MetricCard({ title, value, description, icon: Icon }: MetricCardProps) 
 }
 
 export function DashboardPage() {
-  const overviewQuery = useAnalyticsOverview(DASHBOARD_DATE_FROM, DASHBOARD_DATE_TO);
-  const incomeExpenseQuery = useIncomeExpenseByMonth(CHART_DATE_FROM, CHART_DATE_TO);
-  const debtDynamicsQuery = useDebtDynamics(DASHBOARD_DATE_FROM);
+  const [dateFrom, setDateFrom] = useState(DEFAULT_DATE_FROM);
+  const [dateTo, setDateTo] = useState(DEFAULT_DATE_TO);
+
+  const chartDateFrom = useMemo(() => getMonthStart(dateFrom), [dateFrom]);
+  const chartDateTo = dateTo;
+
+  const overviewQuery = useAnalyticsOverview(dateFrom, dateTo);
+  const incomeExpenseQuery = useIncomeExpenseByMonth(chartDateFrom, chartDateTo);
+  const debtDynamicsQuery = useDebtDynamics(dateFrom);
 
   const isLoading =
     overviewQuery.isLoading ||
     incomeExpenseQuery.isLoading ||
     debtDynamicsQuery.isLoading;
+
+  const isFetching =
+    overviewQuery.isFetching ||
+    incomeExpenseQuery.isFetching ||
+    debtDynamicsQuery.isFetching;
 
   const isError =
     overviewQuery.isError ||
@@ -107,7 +123,7 @@ export function DashboardPage() {
         <div>
           <h2 className="text-2xl font-bold text-slate-950">Dashboard</h2>
           <p className="text-slate-500">
-            Сводка за период {DASHBOARD_DATE_FROM} — {DASHBOARD_DATE_TO}
+            Сводка за период {formatDate(dateFrom)} — {formatDate(dateTo)}
           </p>
         </div>
 
@@ -116,16 +132,28 @@ export function DashboardPage() {
         </div>
       </div>
 
+      <PeriodFilter
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateFromChange={setDateFrom}
+        onDateToChange={setDateTo}
+        disabled={isFetching}
+      />
+
+      {isFetching ? (
+        <div className="text-sm text-slate-500">Обновляем данные...</div>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          title="Доходы за месяц"
+          title="Доходы за период"
           value={formatMoney(overview.total_income)}
           description="Все доходы за выбранный период"
           icon={TrendingUp}
         />
 
         <MetricCard
-          title="Расходы за месяц"
+          title="Расходы за период"
           value={formatMoney(overview.total_expenses)}
           description="Обязательные + переменные"
           icon={Receipt}
@@ -203,7 +231,7 @@ export function DashboardPage() {
               Топ расходов
             </h3>
             <p className="text-sm text-slate-500">
-              Категории расходов за текущий месяц
+              Категории расходов за выбранный период
             </p>
           </div>
 
@@ -280,7 +308,7 @@ export function DashboardPage() {
               <div className="text-sm text-slate-500">Закрытие долгов</div>
               <div className="mt-1 text-xl font-bold text-slate-950">
                 {debtDynamics.paid_off
-                  ? debtDynamics.payoff_date ?? "—"
+                  ? formatDate(debtDynamics.payoff_date) ?? "—"
                   : "Не закрываются в горизонте"}
               </div>
             </div>
@@ -307,9 +335,7 @@ export function DashboardPage() {
             </div>
 
             <div>
-              <div className="text-sm text-slate-500">
-                Debt / income ratio
-              </div>
+              <div className="text-sm text-slate-500">Debt / income ratio</div>
               <div className="mt-1 text-xl font-bold text-slate-950">
                 {overview.debt_to_income_ratio_percent
                   ? formatPercent(overview.debt_to_income_ratio_percent)

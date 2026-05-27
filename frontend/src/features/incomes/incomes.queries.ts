@@ -11,6 +11,7 @@ import type {
   CreateIncomePayload,
   UpdateIncomePayload
 } from "@/features/incomes/incomes.types";
+import { notify } from "@/lib/toast";
 
 export const incomesQueryKeys = {
   all: ["incomes"] as const,
@@ -45,6 +46,10 @@ export function useCreateIncome() {
     mutationFn: (payload: CreateIncomePayload) => createIncome(payload),
     onSuccess: async () => {
       await invalidateFinanceData(queryClient);
+      notify.success("Доход добавлен");
+    },
+    onError: () => {
+      notify.error("Не удалось добавить доход");
     }
   });
 }
@@ -62,6 +67,10 @@ export function useUpdateIncome() {
     }) => updateIncome(incomeId, payload),
     onSuccess: async () => {
       await invalidateFinanceData(queryClient);
+      notify.success("Доход обновлён");
+    },
+    onError: () => {
+      notify.error("Не удалось обновить доход");
     }
   });
 }
@@ -73,6 +82,10 @@ export function useDeleteIncome() {
     mutationFn: (incomeId: number) => deleteIncome(incomeId),
     onSuccess: async () => {
       await invalidateFinanceData(queryClient);
+      notify.success("Доход удалён");
+    },
+    onError: () => {
+      notify.error("Не удалось удалить доход");
     }
   });
 }
