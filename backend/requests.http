@@ -1,0 +1,165 @@
+### Healthcheck
+GET http://localhost:8000/health
+
+
+### Login
+POST http://localhost:8000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "admin123"
+}
+
+
+### Me
+GET http://localhost:8000/api/v1/auth/me
+Authorization: Bearer {{access_token}}
+
+
+### List incomes
+GET http://localhost:8000/api/v1/incomes
+Authorization: Bearer {{access_token}}
+
+
+### Create income
+POST http://localhost:8000/api/v1/incomes
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "amount": 250000,
+  "date": "2026-05-05",
+  "category": "Salary",
+  "type": "regular",
+  "comment": "May salary"
+}
+
+
+### List expenses
+GET http://localhost:8000/api/v1/expenses
+Authorization: Bearer {{access_token}}
+
+
+### Create expense
+POST http://localhost:8000/api/v1/expenses
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "amount": 45000,
+  "date": "2026-05-10",
+  "category": "Food",
+  "type": "variable",
+  "recurrence_type": "none",
+  "comment": "Groceries and cafes"
+}
+
+
+### List debts
+GET http://localhost:8000/api/v1/debts
+Authorization: Bearer {{access_token}}
+
+
+### Create debt
+POST http://localhost:8000/api/v1/debts
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "name": "New Credit Card",
+  "debt_type": "credit_card",
+  "principal_balance": 100000,
+  "annual_interest_rate": 24.9,
+  "minimum_monthly_payment": 8000,
+  "due_day": 12,
+  "early_repayment_allowed": true,
+  "payoff_priority": 1,
+  "is_active": true,
+  "comment": "Test credit card"
+}
+
+
+### Calculation summary
+GET http://localhost:8000/api/v1/calculations/summary?date_from=2026-04-01&date_to=2026-04-30
+Authorization: Bearer {{access_token}}
+
+
+### Cashflow
+GET http://localhost:8000/api/v1/calculations/cashflow?date_from=2026-04-01&date_to=2026-04-30
+Authorization: Bearer {{access_token}}
+
+
+### Debt strategy - avalanche
+POST http://localhost:8000/api/v1/calculations/debt-strategy
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "strategy_type": "avalanche",
+  "start_date": "2026-04-01",
+  "extra_monthly_payment": 15000,
+  "max_months": 240
+}
+
+
+### Debt strategy - snowball
+POST http://localhost:8000/api/v1/calculations/debt-strategy
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "strategy_type": "snowball",
+  "start_date": "2026-04-01",
+  "extra_monthly_payment": 15000,
+  "max_months": 240
+}
+
+
+### Scenario compare
+POST http://localhost:8000/api/v1/calculations/scenario-compare
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "start_date": "2026-04-01",
+  "max_months": 240,
+  "scenarios": [
+    {
+      "strategy_type": "snowball",
+      "extra_monthly_payment": 0
+    },
+    {
+      "strategy_type": "snowball",
+      "extra_monthly_payment": 15000
+    },
+    {
+      "strategy_type": "avalanche",
+      "extra_monthly_payment": 0
+    },
+    {
+      "strategy_type": "avalanche",
+      "extra_monthly_payment": 15000
+    }
+  ]
+}
+
+
+### Analytics overview
+GET http://localhost:8000/api/v1/analytics/overview?date_from=2026-04-01&date_to=2026-04-30
+Authorization: Bearer {{access_token}}
+
+
+### Analytics income expense by month
+GET http://localhost:8000/api/v1/analytics/income-expense-by-month?date_from=2026-01-01&date_to=2026-04-30
+Authorization: Bearer {{access_token}}
+
+
+### Analytics expense structure
+GET http://localhost:8000/api/v1/analytics/expense-structure?date_from=2026-04-01&date_to=2026-04-30
+Authorization: Bearer {{access_token}}
+
+
+### Analytics debt dynamics
+GET http://localhost:8000/api/v1/analytics/debt-dynamics?start_date=2026-04-01&strategy_type=avalanche&extra_monthly_payment=15000&max_months=120
+Authorization: Bearer {{access_token}}
