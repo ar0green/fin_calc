@@ -32,3 +32,5 @@ coverage/
 Thumbs.db
 .idea/
 .vscode/
+.venv
+__pycache__

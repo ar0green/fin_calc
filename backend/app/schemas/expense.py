@@ -1,4 +1,5 @@
-from datetime import date, datetime
+from datetime import date as Date
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -11,7 +12,7 @@ RecurrenceType = Literal["none", "monthly"]
 
 class ExpenseBase(BaseModel):
     amount: Decimal = Field(gt=0)
-    date: date
+    date: Date
     category: str = Field(min_length=1, max_length=100)
     type: ExpenseType
     recurrence_type: RecurrenceType = "none"
@@ -24,7 +25,7 @@ class ExpenseCreate(ExpenseBase):
 
 class ExpenseUpdate(BaseModel):
     amount: Decimal | None = Field(default=None, gt=0)
-    date: date | None = None
+    date: Date | None = None
     category: str | None = Field(default=None, min_length=1, max_length=100)
     type: ExpenseType | None = None
     recurrence_type: RecurrenceType | None = None
