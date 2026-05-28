@@ -3,6 +3,7 @@ import {
   BarChart3,
   CalendarDays,
   CreditCard,
+  FolderTree,
   HandCoins,
   Home,
   LineChart,
@@ -22,6 +23,11 @@ const navItems = [
     to: "/planning",
     label: "План месяца",
     icon: CalendarDays
+  },
+  {
+    to: "/budgets",
+    label: "Бюджеты",
+    icon: FolderTree
   },
   {
     to: "/incomes",

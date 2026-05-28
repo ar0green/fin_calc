@@ -3,6 +3,8 @@ from app.db.models.debt_payment import DebtPayment
 from app.db.models.expense import Expense
 from app.db.models.income import Income
 from app.db.models.user import User
+from app.db.models.category_budget import CategoryBudget
+from app.db.models.category import Category
 
 __all__ = [
     "Debt",
@@ -10,4 +12,6 @@ __all__ = [
     "Expense",
     "Income",
     "User",
+    "CategoryBudget",
+    "Category",
 ]

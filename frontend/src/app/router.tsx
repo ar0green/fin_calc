@@ -12,6 +12,7 @@ import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ScenariosPage } from "@/pages/ScenariosPage";
 import { PlanningPage } from "@/pages/PlanningPage";
 import { DebtPaymentsPage } from "@/pages/DebtPaymentsPage";
+import { BudgetsPage } from "@/pages/BudgetsPage";
 
 function ProtectedRoute() {
   if (!hasAccessToken()) {
@@ -49,6 +50,10 @@ export const router = createBrowserRouter([
       {
         path: "planning",
         element: <PlanningPage />,
+      },
+      {
+        path: "budgets",
+        element: <BudgetsPage />
       },
       {
         path: "incomes",
