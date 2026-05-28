@@ -6,6 +6,7 @@ from app.api.v1.calculations import router as calculations_router
 from app.api.v1.debts import router as debts_router
 from app.api.v1.expenses import router as expenses_router
 from app.api.v1.incomes import router as incomes_router
+from app.api.v1.planning import router as planning_router
 
 api_router = APIRouter()
 api_router.include_router(auth_router)
@@ -14,3 +15,4 @@ api_router.include_router(expenses_router)
 api_router.include_router(debts_router)
 api_router.include_router(calculations_router)
 api_router.include_router(analytics_router)
+api_router.include_router(planning_router)

@@ -10,6 +10,7 @@ import { IncomesPage } from "@/pages/IncomesPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ScenariosPage } from "@/pages/ScenariosPage";
+import { PlanningPage } from "@/pages/PlanningPage";
 
 function ProtectedRoute() {
   if (!hasAccessToken()) {
@@ -34,7 +35,7 @@ export const router = createBrowserRouter([
       <PublicOnlyRoute>
         <LoginPage />
       </PublicOnlyRoute>
-    )
+    ),
   },
   {
     path: "/",
@@ -42,32 +43,36 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <DashboardPage />
+        element: <DashboardPage />,
+      },
+      {
+        path: "planning",
+        element: <PlanningPage />,
       },
       {
         path: "incomes",
-        element: <IncomesPage />
+        element: <IncomesPage />,
       },
       {
         path: "expenses",
-        element: <ExpensesPage />
+        element: <ExpensesPage />,
       },
       {
         path: "debts",
-        element: <DebtsPage />
+        element: <DebtsPage />,
       },
       {
         path: "analytics",
-        element: <AnalyticsPage />
+        element: <AnalyticsPage />,
       },
       {
         path: "scenarios",
-        element: <ScenariosPage />
-      }
-    ]
+        element: <ScenariosPage />,
+      },
+    ],
   },
   {
     path: "*",
-    element: <NotFoundPage />
-  }
+    element: <NotFoundPage />,
+  },
 ]);

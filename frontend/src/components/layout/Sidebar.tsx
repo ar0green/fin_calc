@@ -1,12 +1,14 @@
 import { NavLink } from "react-router-dom";
 import {
   BarChart3,
+  CalendarDays,
   CreditCard,
   Home,
   LineChart,
   Receipt,
   TrendingUp
 } from "lucide-react";
+
 import clsx from "clsx";
 
 const navItems = [
@@ -14,6 +16,11 @@ const navItems = [
     to: "/",
     label: "Dashboard",
     icon: Home
+  },
+  {
+    to: "/planning",
+    label: "План месяца",
+    icon: CalendarDays
   },
   {
     to: "/incomes",
