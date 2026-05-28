@@ -7,6 +7,8 @@ import {
   RotateCcw,
   TrendingDown,
   TrendingUp,
+  AlertTriangle,
+  Wallet,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -29,6 +31,7 @@ import type {
 } from "@/features/planning/planning.types";
 import { formatDate, formatMoney, formatPercent } from "@/lib/format";
 import { buildMonthOptions } from "@/lib/month";
+import { useMonthlyBudgetSummary } from "@/features/budgets/budgets.queries";
 
 const SAFETY_BUFFER_TYPE_OPTIONS = [
   { label: "% от дохода", value: "percent" },
@@ -173,8 +176,9 @@ export function PlanningPage() {
   }, [settings]);
 
   const monthlyPlanQuery = useMonthlyPlan(monthlyPlanParams);
+  const budgetSummaryQuery = useMonthlyBudgetSummary(month);
 
-  if (monthlyPlanQuery.isLoading) {
+  if (monthlyPlanQuery.isLoading || budgetSummaryQuery.isLoading) {
     return (
       <PageState
         title="Загружаем план месяца"
@@ -183,7 +187,7 @@ export function PlanningPage() {
     );
   }
 
-  if (monthlyPlanQuery.isError) {
+  if (monthlyPlanQuery.isError || budgetSummaryQuery.isError) {
     return (
       <PageState
         title="Не удалось загрузить план месяца"
@@ -193,8 +197,9 @@ export function PlanningPage() {
   }
 
   const plan = monthlyPlanQuery.data;
+  const budgetSummary = budgetSummaryQuery.data;
 
-  if (!plan) {
+  if (!plan || !budgetSummary) {
     return (
       <PageState
         title="Нет данных"
@@ -213,6 +218,11 @@ export function PlanningPage() {
   const hasPositiveFreeCash = Number(plan.free_cash) > 0;
   const hasRecommendedExtra = Number(plan.recommended_extra_payment) > 0;
   const impact = plan.scenario_impact;
+  const overBudgetItems = budgetSummary.items.filter(
+    (item) => item.is_over_budget,
+  );
+
+  const hasBudgetOverruns = overBudgetItems.length > 0;
 
   return (
     <div className="space-y-6">
@@ -363,6 +373,131 @@ export function PlanningPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
+          title="Бюджет месяца"
+          value={formatMoney(budgetSummary.total_budget_limit)}
+          description="Сумма лимитов категорий"
+          icon={Wallet}
+        />
+
+        <MetricCard
+          title="Факт по бюджету"
+          value={formatMoney(budgetSummary.total_actual_amount)}
+          description="Расходы по категориям с лимитами"
+          icon={Wallet}
+        />
+
+        <MetricCard
+          title="Остаток бюджета"
+          value={formatMoney(budgetSummary.total_remaining_amount)}
+          description="Доступно в рамках лимитов"
+          icon={Wallet}
+        />
+
+        <MetricCard
+          title="Использовано бюджета"
+          value={formatPercent(budgetSummary.total_usage_percent)}
+          description={
+            hasBudgetOverruns
+              ? `${overBudgetItems.length} категорий с превышением`
+              : "Без превышений"
+          }
+          icon={hasBudgetOverruns ? AlertTriangle : Wallet}
+        />
+      </div>
+
+      <Card>
+        <div className="mb-4 flex flex-col justify-between gap-2 md:flex-row md:items-start">
+          <div>
+            <h3 className="text-base font-semibold text-slate-950">
+              Бюджетные лимиты месяца
+            </h3>
+            <p className="text-sm text-slate-500">
+              Сравнение плановых лимитов категорий с фактическими и регулярными
+              расходами.
+            </p>
+          </div>
+
+          <div
+            className={
+              hasBudgetOverruns
+                ? "rounded-xl bg-red-50 px-3 py-1 text-sm font-medium text-red-700"
+                : "rounded-xl bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700"
+            }
+          >
+            {hasBudgetOverruns
+              ? `Превышений: ${overBudgetItems.length}`
+              : "В пределах бюджета"}
+          </div>
+        </div>
+
+        {budgetSummary.items.length > 0 ? (
+          <div className="space-y-4">
+            {budgetSummary.items.map((item) => {
+              const usage = Math.min(Number(item.usage_percent), 100);
+
+              return (
+                <div
+                  key={item.category}
+                  className={
+                    item.is_over_budget
+                      ? "rounded-2xl border border-red-200 bg-red-50 p-4"
+                      : "rounded-2xl border border-slate-200 p-4"
+                  }
+                >
+                  <div className="flex flex-col justify-between gap-2 md:flex-row md:items-start">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-950">
+                        {item.category}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        Факт {formatMoney(item.actual_amount)} из лимита{" "}
+                        {formatMoney(item.budget_limit)}
+                      </div>
+                    </div>
+
+                    <div className="text-left md:text-right">
+                      <div
+                        className={
+                          item.is_over_budget
+                            ? "text-sm font-semibold text-red-700"
+                            : "text-sm font-semibold text-slate-950"
+                        }
+                      >
+                        {item.is_over_budget ? "Превышение" : "Остаток"}{" "}
+                        {formatMoney(item.remaining_amount)}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {formatPercent(item.usage_percent)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white ring-1 ring-slate-200">
+                    <div
+                      className={
+                        item.is_over_budget
+                          ? "h-full rounded-full bg-red-500"
+                          : "h-full rounded-full bg-slate-900"
+                      }
+                      style={{
+                        width: `${usage}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState
+            title="Нет бюджетов"
+            description="Создай бюджеты категорий на странице Бюджеты, чтобы видеть ограничения месяца."
+          />
+        )}
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
           title="Рекомендованный extra"
           value={formatMoney(plan.recommended_extra_payment)}
           description="Можно направить на ускоренное погашение"
@@ -470,6 +605,19 @@ export function PlanningPage() {
               Рекомендация зависит от safety buffer и выбранной стратегии.
             </p>
           </div>
+
+          {hasBudgetOverruns ? (
+            <div className="mb-4 rounded-2xl bg-amber-50 p-4 text-amber-900">
+              <div className="text-sm font-semibold">
+                Есть превышения бюджета
+              </div>
+              <div className="mt-1 text-sm">
+                Перед увеличением extra payment стоит проверить категории с
+                превышением. Иначе план погашения долгов может быть слишком
+                агрессивным.
+              </div>
+            </div>
+          ) : null}
 
           {hasPositiveFreeCash ? (
             <div className="space-y-4">

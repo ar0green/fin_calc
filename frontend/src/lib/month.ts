@@ -68,3 +68,7 @@ export function buildMonthOptions(params?: {
 export function getCurrentMonthValue(): string {
   return toMonthValue(new Date());
 }
+
+export function monthValueFromIsoDate(value: string): string {
+  return value.slice(0, 7);
+}

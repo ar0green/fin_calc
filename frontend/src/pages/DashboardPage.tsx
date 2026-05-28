@@ -6,6 +6,8 @@ import {
   PiggyBank,
   Receipt,
   TrendingUp,
+  AlertTriangle,
+  Wallet,
 } from "lucide-react";
 
 import { DebtDynamicsChart } from "@/components/charts/DebtDynamicsChart";
@@ -21,6 +23,8 @@ import {
 } from "@/features/dashboard/dashboard.queries";
 import { useDebtPaymentsSummary } from "@/features/analytics/analytics.queries";
 import { formatDate, formatMoney, formatPercent } from "@/lib/format";
+import { useMonthlyBudgetSummary } from "@/features/budgets/budgets.queries";
+import { monthValueFromIsoDate } from "@/lib/month";
 
 const DEFAULT_DATE_FROM = "2026-04-01";
 const DEFAULT_DATE_TO = "2026-04-30";
@@ -68,6 +72,7 @@ function MetricCard({
 export function DashboardPage() {
   const [dateFrom, setDateFrom] = useState(DEFAULT_DATE_FROM);
   const [dateTo, setDateTo] = useState(DEFAULT_DATE_TO);
+  const budgetMonth = monthValueFromIsoDate(dateFrom);
 
   const chartDateFrom = useMemo(() => getMonthStart(dateFrom), [dateFrom]);
   const chartDateTo = dateTo;
@@ -79,12 +84,14 @@ export function DashboardPage() {
   );
   const debtDynamicsQuery = useDebtDynamics(dateFrom);
   const debtPaymentsSummaryQuery = useDebtPaymentsSummary(dateFrom, dateTo);
+  const budgetSummaryQuery = useMonthlyBudgetSummary(budgetMonth);
 
   const isLoading =
     overviewQuery.isLoading ||
     incomeExpenseQuery.isLoading ||
     debtDynamicsQuery.isLoading ||
-    debtPaymentsSummaryQuery.isLoading;
+    debtPaymentsSummaryQuery.isLoading ||
+    budgetSummaryQuery.isLoading;
 
   const isFetching =
     overviewQuery.isFetching ||
@@ -96,7 +103,8 @@ export function DashboardPage() {
     overviewQuery.isError ||
     incomeExpenseQuery.isError ||
     debtDynamicsQuery.isError ||
-    debtPaymentsSummaryQuery.isError;
+    debtPaymentsSummaryQuery.isError ||
+    budgetSummaryQuery.isError;
 
   if (isLoading) {
     return (
@@ -129,8 +137,15 @@ export function DashboardPage() {
   const incomeExpense = incomeExpenseQuery.data;
   const debtDynamics = debtDynamicsQuery.data;
   const debtPaymentsSummary = debtPaymentsSummaryQuery.data;
+  const budgetSummary = budgetSummaryQuery.data;
 
-  if (!overview || !incomeExpense || !debtDynamics || !debtPaymentsSummary) {
+  if (
+    !overview ||
+    !incomeExpense ||
+    !debtDynamics ||
+    !debtPaymentsSummary ||
+    !budgetSummary
+  ) {
     return (
       <PageState
         title="Нет данных"
@@ -138,6 +153,10 @@ export function DashboardPage() {
       />
     );
   }
+
+  const overBudgetCategoriesCount = budgetSummary.items.filter(
+    (item) => item.is_over_budget,
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -253,6 +272,36 @@ export function DashboardPage() {
           value={formatPercent(debtPaymentsSummary.interest_share_percent)}
           description="В структуре платежей"
           icon={TrendingUp}
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          title="Бюджет месяца"
+          value={formatMoney(budgetSummary.total_budget_limit)}
+          description={`Месяц: ${budgetSummary.month}`}
+          icon={Wallet}
+        />
+
+        <MetricCard
+          title="Факт по бюджету"
+          value={formatMoney(budgetSummary.total_actual_amount)}
+          description="Расходы по бюджетируемым категориям"
+          icon={Wallet}
+        />
+
+        <MetricCard
+          title="Остаток бюджета"
+          value={formatMoney(budgetSummary.total_remaining_amount)}
+          description="Может быть отрицательным"
+          icon={Wallet}
+        />
+
+        <MetricCard
+          title="Превышения"
+          value={String(overBudgetCategoriesCount)}
+          description="Категорий сверх лимита"
+          icon={AlertTriangle}
         />
       </div>
 

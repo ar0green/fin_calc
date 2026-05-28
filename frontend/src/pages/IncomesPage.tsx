@@ -19,6 +19,7 @@ import {
 } from "@/features/incomes/incomes.queries";
 import type { Income, IncomeType } from "@/features/incomes/incomes.types";
 import { formatDate, formatMoney } from "@/lib/format";
+import { useCategories } from "@/features/categories/categories.queries";
 
 const incomeSchema = z.object({
   amount: z.coerce.number().positive("Сумма должна быть больше 0"),
@@ -64,10 +65,39 @@ function mapIncomeToFormValues(income: Income): IncomeFormValues {
   };
 }
 
+function ensureCurrentCategoryOption(
+  options: { label: string; value: string }[],
+  currentCategory?: string
+) {
+  if (!currentCategory) {
+    return options;
+  }
+
+  const exists = options.some((option) => option.value === currentCategory);
+
+  if (exists) {
+    return options;
+  }
+
+  return [
+    ...options,
+    {
+      label: `${currentCategory} · legacy`,
+      value: currentCategory
+    }
+  ];
+}
+
 export function IncomesPage() {
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
 
   const incomesQuery = useIncomes({
+    limit: 100,
+    offset: 0,
+  });
+
+  const categoriesQuery = useCategories({
+    isActive: true,
     limit: 100,
     offset: 0,
   });
@@ -144,7 +174,26 @@ export function IncomesPage() {
     });
   };
 
-  if (incomesQuery.isLoading) {
+  const categories = categoriesQuery.data ?? [];
+
+  const incomeCategories = categories.filter(
+    (category) => category.type === "income" || category.type === "both",
+  );
+
+  const incomeCategoryOptions =
+    incomeCategories.length > 0
+      ? incomeCategories.map((category) => ({
+          label: category.name,
+          value: category.name,
+        }))
+      : [
+          {
+            label: "Нет категорий доходов",
+            value: "",
+          },
+        ];
+
+  if (incomesQuery.isLoading || categoriesQuery.isLoading) {
     return (
       <PageState
         title="Загружаем доходы"
@@ -153,7 +202,7 @@ export function IncomesPage() {
     );
   }
 
-  if (incomesQuery.isError) {
+  if (incomesQuery.isError || categoriesQuery.isError) {
     return (
       <PageState
         title="Не удалось загрузить доходы"
@@ -234,12 +283,20 @@ export function IncomesPage() {
               )}
             />
 
-            <Input
+            <Select
               label="Категория"
-              placeholder="Salary, Bonus, Freelance..."
+              options={incomeCategoryOptions}
               error={errors.category?.message}
+              disabled={incomeCategories.length === 0}
               {...register("category")}
             />
+
+            {incomeCategories.length === 0 ? (
+              <div className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Сначала создай категорию типа “Доход” или “Доход и расход” на
+                странице “Бюджеты”.
+              </div>
+            ) : null}
 
             <Select
               label="Тип"
@@ -247,10 +304,11 @@ export function IncomesPage() {
               error={errors.type?.message}
               {...register("type")}
             />
-            
+
             <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              Регулярные доходы учитываются в расчётах каждого месяца, начиная с месяца даты дохода.
-              Нерегулярные доходы учитываются только в месяце фактической даты.
+              Регулярные доходы учитываются в расчётах каждого месяца, начиная с
+              месяца даты дохода. Нерегулярные доходы учитываются только в
+              месяце фактической даты.
             </div>
 
             <Input
@@ -276,7 +334,12 @@ export function IncomesPage() {
               <Button
                 type="submit"
                 className="flex-1 gap-2"
-                disabled={isSubmitting || (isEditMode && !isDirty)}
+                disabled={
+                  createIncomeMutation.isPending ||
+                  updateIncomeMutation.isPending ||
+                  incomeCategories.length === 0 ||
+                  (isEditMode && !isDirty)
+                }
               >
                 {isEditMode ? (
                   <>

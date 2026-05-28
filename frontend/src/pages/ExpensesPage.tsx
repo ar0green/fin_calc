@@ -23,6 +23,7 @@ import type {
   RecurrenceType,
 } from "@/features/expenses/expenses.types";
 import { formatDate, formatMoney } from "@/lib/format";
+import { useCategories } from "@/features/categories/categories.queries";
 
 const expenseSchema = z.object({
   amount: z.coerce.number().positive("Сумма должна быть больше 0"),
@@ -77,6 +78,29 @@ function mapExpenseToFormValues(expense: Expense): ExpenseFormValues {
     recurrence_type: expense.recurrence_type,
     comment: expense.comment ?? "",
   };
+}
+
+function ensureCurrentCategoryOption(
+  options: { label: string; value: string }[],
+  currentCategory?: string
+) {
+  if (!currentCategory) {
+    return options;
+  }
+
+  const exists = options.some((option) => option.value === currentCategory);
+
+  if (exists) {
+    return options;
+  }
+
+  return [
+    ...options,
+    {
+      label: `${currentCategory} · legacy`,
+      value: currentCategory
+    }
+  ];
 }
 
 export function ExpensesPage() {
@@ -171,7 +195,32 @@ export function ExpensesPage() {
     });
   };
 
-  if (expensesQuery.isLoading) {
+  const categoriesQuery = useCategories({
+    isActive: true,
+    limit: 100,
+    offset: 0,
+  });
+
+  const categories = categoriesQuery.data ?? [];
+
+  const expenseCategories = categories.filter(
+    (category) => category.type === "expense" || category.type === "both",
+  );
+
+  const expenseCategoryOptions =
+    expenseCategories.length > 0
+      ? expenseCategories.map((category) => ({
+          label: category.name,
+          value: category.name,
+        }))
+      : [
+          {
+            label: "Нет категорий расходов",
+            value: "",
+          },
+        ];
+
+  if (expensesQuery.isLoading || categoriesQuery.isLoading) {
     return (
       <PageState
         title="Загружаем расходы"
@@ -180,7 +229,7 @@ export function ExpensesPage() {
     );
   }
 
-  if (expensesQuery.isError) {
+  if (expensesQuery.isError || categoriesQuery.isError) {
     return (
       <PageState
         title="Не удалось загрузить расходы"
@@ -272,12 +321,20 @@ export function ExpensesPage() {
               )}
             />
 
-            <Input
+            <Select
               label="Категория"
-              placeholder="Rent, Food, Transport..."
+              options={expenseCategoryOptions}
               error={errors.category?.message}
+              disabled={expenseCategories.length === 0}
               {...register("category")}
             />
+
+            {expenseCategories.length === 0 ? (
+              <div className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Сначала создай категорию типа “Расход” или “Доход и расход” на
+                странице “Бюджеты”.
+              </div>
+            ) : null}
 
             <Select
               label="Тип расхода"
@@ -294,8 +351,9 @@ export function ExpensesPage() {
             />
 
             <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              Ежемесячные расходы учитываются в расчётах каждого месяца, начиная с месяца даты расхода.
-              Физические копии расходов в базе не создаются.
+              Ежемесячные расходы учитываются в расчётах каждого месяца, начиная
+              с месяца даты расхода. Физические копии расходов в базе не
+              создаются.
             </div>
 
             <Input
@@ -321,7 +379,12 @@ export function ExpensesPage() {
               <Button
                 type="submit"
                 className="flex-1 gap-2"
-                disabled={isSubmitting || (isEditMode && !isDirty)}
+                disabled={
+                  createExpenseMutation.isPending ||
+                  updateExpenseMutation.isPending ||
+                  expenseCategories.length === 0 ||
+                  (isEditMode && !isDirty)
+                }
               >
                 {isEditMode ? (
                   <>
