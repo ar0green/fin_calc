@@ -11,6 +11,13 @@ from app.db.models.debt import Debt
 from app.db.models.expense import Expense
 from app.db.models.income import Income
 from app.services.calculation_service import build_summary
+from app.db.models.debt_payment import DebtPayment
+
+from app.services.recurring_expense_service import (
+    expand_expenses_by_month,
+    iter_month_starts,
+    month_start,
+)
 
 
 def _month_start(value: date) -> date:
@@ -172,46 +179,47 @@ def build_income_expense_by_month(
     date_from: date,
     date_to: date,
 ) -> dict:
-    months = _iter_month_starts(date_from, date_to)
+    months = iter_month_starts(date_from, date_to)
 
-    income_by_month: dict[date, Decimal] = {
-        month: Decimal("0") for month in months
-    }
-    expenses_by_month: dict[date, Decimal] = {
-        month: Decimal("0") for month in months
-    }
+    incomes = list(
+        db.scalars(
+            select(Income).where(
+                Income.user_id == user_id,
+                Income.date >= date_from,
+                Income.date <= date_to,
+            )
+        ).all()
+    )
 
-    incomes = _load_incomes(
-        db,
-        user_id,
-        date_from=date_from,
-        date_to=date_to,
-    )
-    expenses = _load_expenses(
-        db,
-        user_id,
-        date_from=date_from,
-        date_to=date_to,
-    )
+    income_by_month: dict[date, Decimal] = defaultdict(lambda: Decimal("0"))
 
     for income in incomes:
-        month = _month_start(income.date)
-        income_by_month[month] = money(income_by_month[month] + income.amount)
+        income_month = month_start(income.date)
+        income_by_month[income_month] = money(
+            income_by_month[income_month] + income.amount
+        )
 
-    for expense in expenses:
-        month = _month_start(expense.date)
-        expenses_by_month[month] = money(expenses_by_month[month] + expense.amount)
+    expenses_by_month = expand_expenses_by_month(
+        db,
+        user_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
 
     items = []
+
     for month in months:
-        income_amount = money(income_by_month[month])
-        expense_amount = money(expenses_by_month[month])
+        month_income = money(income_by_month[month])
+        month_expenses = money(
+            expenses_by_month.get(month, {}).get("total_expenses", Decimal("0"))
+        )
+
         items.append(
             {
                 "month": month,
-                "income": income_amount,
-                "expenses": expense_amount,
-                "cashflow": money(income_amount - expense_amount),
+                "income": month_income,
+                "expenses": month_expenses,
+                "cashflow": money(month_income - month_expenses),
             }
         )
 
@@ -298,4 +306,116 @@ def build_debt_dynamics(
         "total_paid": simulation["total_paid"],
         "total_interest_paid": simulation["total_interest_paid"],
         "items": simulation["projection"],
+    }
+    
+    
+def build_debt_payments_summary(
+    db: Session,
+    user_id: int,
+    *,
+    date_from: date,
+    date_to: date,
+) -> dict:
+    statement = (
+        select(DebtPayment, Debt)
+        .join(Debt, Debt.id == DebtPayment.debt_id)
+        .where(
+            DebtPayment.user_id == user_id,
+            DebtPayment.payment_date >= date_from,
+            DebtPayment.payment_date <= date_to,
+        )
+        .order_by(DebtPayment.payment_date.asc(), DebtPayment.id.asc())
+    )
+
+    rows = db.execute(statement).all()
+
+    total_paid = Decimal("0")
+    principal_paid = Decimal("0")
+    interest_paid = Decimal("0")
+
+    monthly_totals: dict[date, dict[str, Decimal]] = defaultdict(
+        lambda: {
+            "total_paid": Decimal("0"),
+            "principal_paid": Decimal("0"),
+            "interest_paid": Decimal("0"),
+        }
+    )
+
+    by_debt_totals: dict[int, dict] = {}
+
+    for payment, debt in rows:
+        payment_total = money(payment.amount)
+        payment_principal = money(payment.principal_amount)
+        payment_interest = money(payment.interest_amount)
+
+        total_paid = money(total_paid + payment_total)
+        principal_paid = money(principal_paid + payment_principal)
+        interest_paid = money(interest_paid + payment_interest)
+
+        month = _month_start(payment.payment_date)
+        monthly_totals[month]["total_paid"] = money(
+            monthly_totals[month]["total_paid"] + payment_total
+        )
+        monthly_totals[month]["principal_paid"] = money(
+            monthly_totals[month]["principal_paid"] + payment_principal
+        )
+        monthly_totals[month]["interest_paid"] = money(
+            monthly_totals[month]["interest_paid"] + payment_interest
+        )
+
+        if debt.id not in by_debt_totals:
+            by_debt_totals[debt.id] = {
+                "debt_id": debt.id,
+                "debt_name": debt.name,
+                "debt_type": debt.debt_type,
+                "total_paid": Decimal("0"),
+                "principal_paid": Decimal("0"),
+                "interest_paid": Decimal("0"),
+            }
+
+        by_debt_totals[debt.id]["total_paid"] = money(
+            by_debt_totals[debt.id]["total_paid"] + payment_total
+        )
+        by_debt_totals[debt.id]["principal_paid"] = money(
+            by_debt_totals[debt.id]["principal_paid"] + payment_principal
+        )
+        by_debt_totals[debt.id]["interest_paid"] = money(
+            by_debt_totals[debt.id]["interest_paid"] + payment_interest
+        )
+
+    monthly_items = [
+        {
+            "month": month,
+            "total_paid": money(values["total_paid"]),
+            "principal_paid": money(values["principal_paid"]),
+            "interest_paid": money(values["interest_paid"]),
+        }
+        for month, values in sorted(monthly_totals.items(), key=lambda item: item[0])
+    ]
+
+    by_debt_items = [
+        {
+            "debt_id": item["debt_id"],
+            "debt_name": item["debt_name"],
+            "debt_type": item["debt_type"],
+            "total_paid": money(item["total_paid"]),
+            "principal_paid": money(item["principal_paid"]),
+            "interest_paid": money(item["interest_paid"]),
+        }
+        for item in sorted(
+            by_debt_totals.values(),
+            key=lambda value: value["total_paid"],
+            reverse=True,
+        )
+    ]
+
+    return {
+        "date_from": date_from,
+        "date_to": date_to,
+        "total_paid": money(total_paid),
+        "principal_paid": money(principal_paid),
+        "interest_paid": money(interest_paid),
+        "interest_share_percent": _percent(interest_paid, total_paid),
+        "monthly_items": monthly_items,
+        "by_debt_items": by_debt_items,
     }

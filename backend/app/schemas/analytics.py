@@ -91,3 +91,31 @@ class DebtDynamicsResponse(BaseModel):
     total_paid: Decimal
     total_interest_paid: Decimal
     items: list[DebtDynamicsMonthItem]
+
+class DebtPaymentMonthlyItem(BaseModel):
+    month: date
+    total_paid: Decimal
+    principal_paid: Decimal
+    interest_paid: Decimal
+
+
+class DebtPaymentByDebtItem(BaseModel):
+    debt_id: int
+    debt_name: str
+    debt_type: str
+    total_paid: Decimal
+    principal_paid: Decimal
+    interest_paid: Decimal
+
+
+class DebtPaymentsSummaryResponse(BaseModel):
+    date_from: date
+    date_to: date
+
+    total_paid: Decimal
+    principal_paid: Decimal
+    interest_paid: Decimal
+    interest_share_percent: Decimal
+
+    monthly_items: list[DebtPaymentMonthlyItem]
+    by_debt_items: list[DebtPaymentByDebtItem]

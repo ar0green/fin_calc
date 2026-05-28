@@ -75,3 +75,32 @@ export interface DebtDynamicsResponse {
   total_interest_paid: string;
   items: DebtDynamicsMonthItem[];
 }
+
+export interface DebtPaymentMonthlyItem {
+  month: string;
+  total_paid: string;
+  principal_paid: string;
+  interest_paid: string;
+}
+
+export interface DebtPaymentByDebtItem {
+  debt_id: number;
+  debt_name: string;
+  debt_type: string;
+  total_paid: string;
+  principal_paid: string;
+  interest_paid: string;
+}
+
+export interface DebtPaymentsSummaryResponse {
+  date_from: string;
+  date_to: string;
+
+  total_paid: string;
+  principal_paid: string;
+  interest_paid: string;
+  interest_share_percent: string;
+
+  monthly_items: DebtPaymentMonthlyItem[];
+  by_debt_items: DebtPaymentByDebtItem[];
+}

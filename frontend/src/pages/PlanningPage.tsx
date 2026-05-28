@@ -28,6 +28,7 @@ import type {
   SafetyBufferType,
 } from "@/features/planning/planning.types";
 import { formatDate, formatMoney, formatPercent } from "@/lib/format";
+import { buildMonthOptions } from "@/lib/month";
 
 const MONTH_OPTIONS = [
   { label: "Январь 2026", value: "2026-01" },
@@ -140,6 +141,16 @@ export function PlanningPage() {
     [month, safetyBufferType, safetyBufferValue, strategyType, maxMonths],
   );
 
+  const monthOptions = useMemo(
+    () =>
+      buildMonthOptions({
+        monthsBack: 6,
+        monthsForward: 18,
+        includeDemoMonths: true,
+      }),
+    [],
+  );
+
   useEffect(() => {
     savePlanningSettings(settings);
   }, [settings]);
@@ -210,7 +221,7 @@ export function PlanningPage() {
             label="Месяц"
             value={month}
             onChange={(event) => updateSettings({ month: event.target.value })}
-            options={MONTH_OPTIONS}
+            options={monthOptions}
           />
 
           <Select

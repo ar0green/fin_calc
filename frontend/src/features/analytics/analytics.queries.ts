@@ -4,7 +4,8 @@ import {
   getAnalyticsOverview,
   getDebtDynamics,
   getExpenseStructure,
-  getIncomeExpenseByMonth
+  getIncomeExpenseByMonth,
+  getDebtPaymentsSummary
 } from "@/features/analytics/analytics.api";
 
 export const analyticsQueryKeys = {
@@ -15,6 +16,8 @@ export const analyticsQueryKeys = {
     ["analytics", "income-expense-by-month", dateFrom, dateTo] as const,
   expenseStructure: (dateFrom: string, dateTo: string) =>
     ["analytics", "expense-structure", dateFrom, dateTo] as const,
+  debtPaymentsSummary: (dateFrom: string, dateTo: string) =>
+  ["analytics", "debt-payments-summary", dateFrom, dateTo] as const,
   debtDynamics: (
     startDate: string,
     strategyType: "snowball" | "avalanche",
@@ -30,6 +33,13 @@ export const analyticsQueryKeys = {
       maxMonths
     ] as const
 };
+
+export function useDebtPaymentsSummary(dateFrom: string, dateTo: string) {
+  return useQuery({
+    queryKey: analyticsQueryKeys.debtPaymentsSummary(dateFrom, dateTo),
+    queryFn: () => getDebtPaymentsSummary({ dateFrom, dateTo })
+  });
+}
 
 export function useAnalyticsOverview(dateFrom: string, dateTo: string) {
   return useQuery({

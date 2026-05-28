@@ -1,6 +1,12 @@
 import type { ElementType } from "react";
 import { useMemo, useState } from "react";
-import { AlertCircle, CreditCard, PiggyBank, Receipt, TrendingUp } from "lucide-react";
+import {
+  AlertCircle,
+  CreditCard,
+  PiggyBank,
+  Receipt,
+  TrendingUp,
+} from "lucide-react";
 
 import { DebtDynamicsChart } from "@/components/charts/DebtDynamicsChart";
 import { IncomeExpenseChart } from "@/components/charts/IncomeExpenseChart";
@@ -11,8 +17,9 @@ import { PeriodFilter } from "@/components/ui/PeriodFilter";
 import {
   useAnalyticsOverview,
   useDebtDynamics,
-  useIncomeExpenseByMonth
+  useIncomeExpenseByMonth,
 } from "@/features/dashboard/dashboard.queries";
+import { useDebtPaymentsSummary } from "@/features/analytics/analytics.queries";
 import { formatDate, formatMoney, formatPercent } from "@/lib/format";
 
 const DEFAULT_DATE_FROM = "2026-04-01";
@@ -20,7 +27,9 @@ const DEFAULT_DATE_TO = "2026-04-30";
 
 function getMonthStart(value: string): string {
   const date = new Date(value);
-  return new Date(date.getFullYear(), date.getMonth(), 1).toISOString().slice(0, 10);
+  return new Date(date.getFullYear(), date.getMonth(), 1)
+    .toISOString()
+    .slice(0, 10);
 }
 
 interface MetricCardProps {
@@ -30,7 +39,12 @@ interface MetricCardProps {
   icon: ElementType;
 }
 
-function MetricCard({ title, value, description, icon: Icon }: MetricCardProps) {
+function MetricCard({
+  title,
+  value,
+  description,
+  icon: Icon,
+}: MetricCardProps) {
   return (
     <Card>
       <div className="flex items-start justify-between gap-4">
@@ -59,23 +73,30 @@ export function DashboardPage() {
   const chartDateTo = dateTo;
 
   const overviewQuery = useAnalyticsOverview(dateFrom, dateTo);
-  const incomeExpenseQuery = useIncomeExpenseByMonth(chartDateFrom, chartDateTo);
+  const incomeExpenseQuery = useIncomeExpenseByMonth(
+    chartDateFrom,
+    chartDateTo,
+  );
   const debtDynamicsQuery = useDebtDynamics(dateFrom);
+  const debtPaymentsSummaryQuery = useDebtPaymentsSummary(dateFrom, dateTo);
 
   const isLoading =
     overviewQuery.isLoading ||
     incomeExpenseQuery.isLoading ||
-    debtDynamicsQuery.isLoading;
+    debtDynamicsQuery.isLoading ||
+    debtPaymentsSummaryQuery.isLoading;
 
   const isFetching =
     overviewQuery.isFetching ||
     incomeExpenseQuery.isFetching ||
-    debtDynamicsQuery.isFetching;
+    debtDynamicsQuery.isFetching ||
+    debtPaymentsSummaryQuery.isFetching;
 
   const isError =
     overviewQuery.isError ||
     incomeExpenseQuery.isError ||
-    debtDynamicsQuery.isError;
+    debtDynamicsQuery.isError ||
+    debtPaymentsSummaryQuery.isError;
 
   if (isLoading) {
     return (
@@ -107,8 +128,9 @@ export function DashboardPage() {
   const overview = overviewQuery.data;
   const incomeExpense = incomeExpenseQuery.data;
   const debtDynamics = debtDynamicsQuery.data;
+  const debtPaymentsSummary = debtPaymentsSummaryQuery.data;
 
-  if (!overview || !incomeExpense || !debtDynamics) {
+  if (!overview || !incomeExpense || !debtDynamics || !debtPaymentsSummary) {
     return (
       <PageState
         title="Нет данных"
@@ -204,6 +226,36 @@ export function DashboardPage() {
         />
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          title="Выплачено по долгам"
+          value={formatMoney(debtPaymentsSummary.total_paid)}
+          description="Все платежи за период"
+          icon={CreditCard}
+        />
+
+        <MetricCard
+          title="В тело долга"
+          value={formatMoney(debtPaymentsSummary.principal_paid)}
+          description="Реальное снижение долга"
+          icon={PiggyBank}
+        />
+
+        <MetricCard
+          title="Проценты"
+          value={formatMoney(debtPaymentsSummary.interest_paid)}
+          description="Стоимость долга за период"
+          icon={Receipt}
+        />
+
+        <MetricCard
+          title="Доля процентов"
+          value={formatPercent(debtPaymentsSummary.interest_share_percent)}
+          description="В структуре платежей"
+          icon={TrendingUp}
+        />
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <div className="mb-4">
@@ -256,7 +308,7 @@ export function DashboardPage() {
                     <div
                       className="h-full rounded-full bg-slate-900"
                       style={{
-                        width: `${Math.min(Number(item.percent), 100)}%`
+                        width: `${Math.min(Number(item.percent), 100)}%`,
                       }}
                     />
                   </div>
@@ -308,7 +360,7 @@ export function DashboardPage() {
               <div className="text-sm text-slate-500">Закрытие долгов</div>
               <div className="mt-1 text-xl font-bold text-slate-950">
                 {debtDynamics.paid_off
-                  ? formatDate(debtDynamics.payoff_date) ?? "—"
+                  ? (formatDate(debtDynamics.payoff_date) ?? "—")
                   : "Не закрываются в горизонте"}
               </div>
             </div>
@@ -321,7 +373,9 @@ export function DashboardPage() {
             </div>
 
             <div>
-              <div className="text-sm text-slate-500">Всего будет выплачено</div>
+              <div className="text-sm text-slate-500">
+                Всего будет выплачено
+              </div>
               <div className="mt-1 text-xl font-bold text-slate-950">
                 {formatMoney(debtDynamics.total_paid)}
               </div>

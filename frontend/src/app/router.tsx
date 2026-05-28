@@ -11,6 +11,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ScenariosPage } from "@/pages/ScenariosPage";
 import { PlanningPage } from "@/pages/PlanningPage";
+import { DebtPaymentsPage } from "@/pages/DebtPaymentsPage";
 
 function ProtectedRoute() {
   if (!hasAccessToken()) {
@@ -60,6 +61,10 @@ export const router = createBrowserRouter([
       {
         path: "debts",
         element: <DebtsPage />,
+      },
+      {
+        path: "debt-payments",
+        element: <DebtPaymentsPage />,
       },
       {
         path: "analytics",

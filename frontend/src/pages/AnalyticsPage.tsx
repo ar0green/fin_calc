@@ -5,10 +5,11 @@ import {
   CreditCard,
   PiggyBank,
   Receipt,
-  TrendingUp
+  TrendingUp,
 } from "lucide-react";
 
 import { AnalyticsDebtDynamicsChart } from "@/components/charts/AnalyticsDebtDynamicsChart";
+import { DebtPaymentsMonthlyChart } from "@/components/charts/DebtPaymentsMonthlyChart";
 import { ExpenseStructureChart } from "@/components/charts/ExpenseStructureChart";
 import { IncomeExpenseChart } from "@/components/charts/IncomeExpenseChart";
 import { Card } from "@/components/ui/Card";
@@ -19,7 +20,8 @@ import {
   useAnalyticsDebtDynamics,
   useAnalyticsOverview,
   useExpenseStructure,
-  useIncomeExpenseByMonth
+  useIncomeExpenseByMonth,
+  useDebtPaymentsSummary,
 } from "@/features/analytics/analytics.queries";
 import { formatDate, formatMoney, formatPercent } from "@/lib/format";
 
@@ -37,7 +39,12 @@ interface MetricCardProps {
   icon: ElementType;
 }
 
-function MetricCard({ title, value, description, icon: Icon }: MetricCardProps) {
+function MetricCard({
+  title,
+  value,
+  description,
+  icon: Icon,
+}: MetricCardProps) {
   return (
     <Card>
       <div className="flex items-start justify-between gap-4">
@@ -65,30 +72,34 @@ export function AnalyticsPage() {
   const overviewQuery = useAnalyticsOverview(dateFrom, dateTo);
   const incomeExpenseQuery = useIncomeExpenseByMonth(dateFrom, dateTo);
   const expenseStructureQuery = useExpenseStructure(dateFrom, dateTo);
+  const debtPaymentsSummaryQuery = useDebtPaymentsSummary(dateFrom, dateTo);
   const debtDynamicsQuery = useAnalyticsDebtDynamics(
     dateFrom,
     DEBT_STRATEGY,
     DEBT_EXTRA_PAYMENT,
-    DEBT_MAX_MONTHS
+    DEBT_MAX_MONTHS,
   );
 
   const isLoading =
     overviewQuery.isLoading ||
     incomeExpenseQuery.isLoading ||
     expenseStructureQuery.isLoading ||
-    debtDynamicsQuery.isLoading;
+    debtDynamicsQuery.isLoading ||
+    debtPaymentsSummaryQuery.isLoading;
 
   const isFetching =
     overviewQuery.isFetching ||
     incomeExpenseQuery.isFetching ||
     expenseStructureQuery.isFetching ||
-    debtDynamicsQuery.isFetching;
+    debtDynamicsQuery.isFetching ||
+    debtPaymentsSummaryQuery.isFetching;
 
   const isError =
     overviewQuery.isError ||
     incomeExpenseQuery.isError ||
     expenseStructureQuery.isError ||
-    debtDynamicsQuery.isError;
+    debtDynamicsQuery.isError ||
+    debtPaymentsSummaryQuery.isError;
 
   if (isLoading) {
     return (
@@ -112,8 +123,15 @@ export function AnalyticsPage() {
   const incomeExpense = incomeExpenseQuery.data;
   const expenseStructure = expenseStructureQuery.data;
   const debtDynamics = debtDynamicsQuery.data;
+  const debtPaymentsSummary = debtPaymentsSummaryQuery.data;
 
-  if (!overview || !incomeExpense || !expenseStructure || !debtDynamics) {
+  if (
+    !overview ||
+    !incomeExpense ||
+    !expenseStructure ||
+    !debtDynamics ||
+    !debtPaymentsSummary
+  ) {
     return (
       <PageState
         title="Нет данных"
@@ -213,6 +231,36 @@ export function AnalyticsPage() {
         />
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          title="Выплачено по долгам"
+          value={formatMoney(debtPaymentsSummary.total_paid)}
+          description="Всего платежей за период"
+          icon={CreditCard}
+        />
+
+        <MetricCard
+          title="В тело долга"
+          value={formatMoney(debtPaymentsSummary.principal_paid)}
+          description="Снижение основного долга"
+          icon={TrendingUp}
+        />
+
+        <MetricCard
+          title="Проценты"
+          value={formatMoney(debtPaymentsSummary.interest_paid)}
+          description="Стоимость обслуживания долга"
+          icon={Receipt}
+        />
+
+        <MetricCard
+          title="Доля процентов"
+          value={formatPercent(debtPaymentsSummary.interest_share_percent)}
+          description="Проценты от всех платежей"
+          icon={BarChart3}
+        />
+      </div>
+
       <Card>
         <div className="mb-4">
           <h3 className="text-base font-semibold text-slate-950">
@@ -232,6 +280,89 @@ export function AnalyticsPage() {
           />
         )}
       </Card>
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-2">
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-slate-950">
+              Платежи по долгам
+            </h3>
+            <p className="text-sm text-slate-500">
+              Сколько ушло в тело долга и проценты по месяцам.
+            </p>
+          </div>
+
+          {debtPaymentsSummary.monthly_items.length > 0 ? (
+            <DebtPaymentsMonthlyChart
+              items={debtPaymentsSummary.monthly_items}
+            />
+          ) : (
+            <EmptyState
+              title="Нет платежей"
+              description="За выбранный период платежи по долгам не найдены."
+            />
+          )}
+        </Card>
+
+        <Card>
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-slate-950">
+              Платежи по долгам
+            </h3>
+            <p className="text-sm text-slate-500">Разбивка по каждому долгу.</p>
+          </div>
+
+          {debtPaymentsSummary.by_debt_items.length > 0 ? (
+            <div className="space-y-4">
+              {debtPaymentsSummary.by_debt_items.map((item) => (
+                <div
+                  key={item.debt_id}
+                  className="rounded-2xl border border-slate-200 p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-950">
+                        {item.debt_name}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {item.debt_type}
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-slate-950">
+                        {formatMoney(item.total_paid)}
+                      </div>
+                      <div className="text-xs text-slate-500">всего</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-xs text-slate-500">Тело</div>
+                      <div className="text-sm font-medium text-slate-900">
+                        {formatMoney(item.principal_paid)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs text-slate-500">Проценты</div>
+                      <div className="text-sm font-medium text-slate-900">
+                        {formatMoney(item.interest_paid)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="Нет платежей"
+              description="Платежей по долгам за период пока нет."
+            />
+          )}
+        </Card>
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
@@ -285,7 +416,7 @@ export function AnalyticsPage() {
                     <div
                       className="h-full rounded-full bg-slate-900"
                       style={{
-                        width: `${Math.min(Number(item.percent), 100)}%`
+                        width: `${Math.min(Number(item.percent), 100)}%`,
                       }}
                     />
                   </div>

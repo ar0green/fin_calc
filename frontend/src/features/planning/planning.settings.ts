@@ -1,9 +1,10 @@
 import type { PlanningSettings } from "@/features/planning/planning.types";
+import { getCurrentMonthValue } from "@/lib/month";
 
 const PLANNING_SETTINGS_KEY = "finance_calculator_planning_settings";
 
 export const DEFAULT_PLANNING_SETTINGS: PlanningSettings = {
-  month: "2026-04",
+  month: getCurrentMonthValue(),
   safetyBufferType: "percent",
   safetyBufferValue: 10,
   strategyType: "avalanche",

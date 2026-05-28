@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.calculators.cashflow import calculate_cashflow, calculate_summary, money
+from app.services.recurring_expense_service import calculate_expense_totals_for_period
 from app.calculators.debt_strategy import simulate_debt_strategy
 from app.db.models.debt import Debt
 from app.db.models.expense import Expense
@@ -101,20 +102,16 @@ def build_summary(
     date_to: date,
 ) -> dict[str, Decimal | date]:
     total_income = get_total_income(db, user_id, date_from=date_from, date_to=date_to)
-    mandatory_expenses = get_total_expenses_by_type(
+    expense_totals = calculate_expense_totals_for_period(
         db,
         user_id,
         date_from=date_from,
         date_to=date_to,
-        expense_type="mandatory",
-    )
-    variable_expenses = get_total_expenses_by_type(
-        db,
-        user_id,
-        date_from=date_from,
-        date_to=date_to,
-        expense_type="variable",
-    )
+        )
+
+    mandatory_expenses = money(expense_totals["mandatory_expenses"])
+    variable_expenses = money(expense_totals["variable_expenses"])
+    total_expenses = money(expense_totals["total_expenses"])
     minimum_debt_payments = get_minimum_debt_payments(db, user_id)
     active_debt_balance = get_active_debt_balance(db, user_id)
 

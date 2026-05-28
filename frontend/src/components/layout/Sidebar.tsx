@@ -3,6 +3,7 @@ import {
   BarChart3,
   CalendarDays,
   CreditCard,
+  HandCoins,
   Home,
   LineChart,
   Receipt,
@@ -36,6 +37,11 @@ const navItems = [
     to: "/debts",
     label: "Долги",
     icon: CreditCard
+  },
+  {
+    to: "/debt-payments",
+    label: "Платежи",
+    icon: HandCoins
   },
   {
     to: "/analytics",

@@ -3,7 +3,8 @@ import type {
   AnalyticsOverview,
   DebtDynamicsResponse,
   ExpenseStructureResponse,
-  IncomeExpenseByMonthResponse
+  IncomeExpenseByMonthResponse,
+  DebtPaymentsSummaryResponse
 } from "@/features/analytics/analytics.types";
 
 export interface AnalyticsPeriodParams {
@@ -28,6 +29,23 @@ export async function getAnalyticsOverview({
       date_to: dateTo
     }
   });
+
+  return response.data;
+}
+
+export async function getDebtPaymentsSummary({
+  dateFrom,
+  dateTo
+}: AnalyticsPeriodParams): Promise<DebtPaymentsSummaryResponse> {
+  const response = await api.get<DebtPaymentsSummaryResponse>(
+    "/analytics/debt-payments-summary",
+    {
+      params: {
+        date_from: dateFrom,
+        date_to: dateTo
+      }
+    }
+  );
 
   return response.data;
 }

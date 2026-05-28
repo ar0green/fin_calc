@@ -1,5 +1,5 @@
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -20,8 +20,14 @@ from app.services.analytics_service import (
     build_income_expense_by_month,
 )
 
-router = APIRouter(prefix="/analytics", tags=["analytics"])
+from app.schemas.analytics import DebtPaymentsSummaryResponse
+from app.services.analytics_service import build_debt_payments_summary
+from app.services.recurring_expense_service import calculate_expense_categories_for_period
+from app.services.recurring_expense_service import expand_expenses_by_month
 
+from app.calculators.cashflow import money
+
+router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 def validate_period(date_from: date, date_to: date) -> None:
     if date_from > date_to:
@@ -76,13 +82,24 @@ def get_expense_structure(
 ) -> ExpenseStructureResponse:
     validate_period(date_from, date_to)
 
-    result = build_expense_structure(
+    items = calculate_expense_categories_for_period(
         db,
         current_user.id,
         date_from=date_from,
         date_to=date_to,
     )
-    return ExpenseStructureResponse.model_validate(result)
+
+    total_expenses = sum((item["amount"] for item in items), Decimal("0"))
+    return ExpenseStructureResponse.model_validate(
+        {
+            "period": {
+                "date_from": date_from,
+                "date_to": date_to,
+            },
+            "total_expenses": money(total_expenses),
+            "items": items,
+        }
+    )
 
 
 @router.get("/debt-dynamics", response_model=DebtDynamicsResponse)
@@ -103,3 +120,19 @@ def get_debt_dynamics(
         max_months=max_months,
     )
     return DebtDynamicsResponse.model_validate(result)
+
+@router.get("/debt-payments-summary", response_model=DebtPaymentsSummaryResponse)
+def get_debt_payments_summary(
+    date_from: date = Query(...),
+    date_to: date = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DebtPaymentsSummaryResponse:
+    result = build_debt_payments_summary(
+        db,
+        current_user.id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+    return DebtPaymentsSummaryResponse.model_validate(result)

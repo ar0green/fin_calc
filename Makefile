@@ -21,6 +21,9 @@ help:
 	@echo "  make frontend-shell Open shell in frontend container"
 	@echo "  make frontend-build Build frontend locally through npm"
 	@echo "  make smoke         Print smoke-test URLs"
+	@echo "  make test-backend       Run backend tests inside Docker"
+	@echo "  make test-backend-cov   Run backend tests with coverage inside Docker"
+	@echo "  make test-backend-local Run backend tests locally"
 
 .PHONY: init
 init:
@@ -89,6 +92,22 @@ frontend-shell:
 .PHONY: frontend-build
 frontend-build:
 	cd frontend && npm run build
+
+.PHONY: test-backend
+test-backend:
+	docker compose exec backend pytest
+
+.PHONY: test-backend-cov
+test-backend-cov:
+	docker compose exec backend pytest --cov=app --cov-report=term-missing
+
+.PHONY: test-backend-local
+test-backend-local:
+	cd backend && pytest
+
+.PHONY: test-backend-local-cov
+test-backend-local-cov:
+	cd backend && pytest --cov=app --cov-report=term-missing
 
 .PHONY: smoke
 smoke:
