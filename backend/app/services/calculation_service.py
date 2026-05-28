@@ -10,6 +10,7 @@ from app.calculators.debt_strategy import simulate_debt_strategy
 from app.db.models.debt import Debt
 from app.db.models.expense import Expense
 from app.db.models.income import Income
+from app.services.recurring_income_service import calculate_income_total_for_period
 
 
 def _scalar_decimal(value: Decimal | None) -> Decimal:
@@ -101,7 +102,12 @@ def build_summary(
     date_from: date,
     date_to: date,
 ) -> dict[str, Decimal | date]:
-    total_income = get_total_income(db, user_id, date_from=date_from, date_to=date_to)
+    total_income = calculate_income_total_for_period(
+            db,
+            user_id,
+            date_from=date_from,
+            date_to=date_to,
+        )
     expense_totals = calculate_expense_totals_for_period(
         db,
         user_id,

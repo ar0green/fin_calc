@@ -11,6 +11,11 @@ from app.calculators.debt_strategy import simulate_debt_strategy
 from app.db.models.debt import Debt
 from app.db.models.expense import Expense
 from app.services.calculation_service import build_summary
+from app.services.recurring_income_service import build_income_plan_items_for_period
+from app.services.recurring_expense_service import (
+    build_expense_plan_items_for_period,
+    calculate_expense_categories_for_period,
+)
 
 
 DEFAULT_SAFETY_BUFFER_RATIO = Decimal("10")
@@ -214,6 +219,20 @@ def build_monthly_plan(
         date_from=date_from,
         date_to=date_to,
     )
+    
+    income_plan = build_income_plan_items_for_period(
+        db,
+        user_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+    expense_plan = build_expense_plan_items_for_period(
+        db,
+        user_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
 
     total_income = money(summary["total_income"])
     mandatory_expenses = money(summary["mandatory_expenses"])
@@ -283,9 +302,13 @@ def build_monthly_plan(
             "date_to": date_to,
         },
         "total_income": total_income,
+        "income_regular": income_plan["income_regular"],
+        "income_irregular": income_plan["income_irregular"],
         "mandatory_expenses": mandatory_expenses,
         "variable_expenses": variable_expenses,
         "total_expenses": total_expenses,
+        "expenses_recurring": expense_plan["expenses_recurring"],
+        "expenses_one_time": expense_plan["expenses_one_time"],
         "minimum_debt_payments": minimum_debt_payments,
         "free_cash": free_cash,
         "debt_payoff_capacity": debt_payoff_capacity,
@@ -301,16 +324,18 @@ def build_monthly_plan(
         "scenario_impact": scenario_impact,
         "expense_categories": expense_categories,
         "active_debts": [
-            {
-                "debt_id": debt.id,
-                "name": debt.name,
-                "debt_type": debt.debt_type,
-                "principal_balance": money(debt.principal_balance),
-                "annual_interest_rate": money(debt.annual_interest_rate),
-                "minimum_monthly_payment": money(debt.minimum_monthly_payment),
-                "due_day": debt.due_day,
-                "payoff_priority": debt.payoff_priority,
-            }
-            for debt in active_debts
-        ],
+                {
+                    "debt_id": debt.id,
+                    "name": debt.name,
+                    "debt_type": debt.debt_type,
+                    "principal_balance": money(debt.principal_balance),
+                    "annual_interest_rate": money(debt.annual_interest_rate),
+                    "minimum_monthly_payment": money(debt.minimum_monthly_payment),
+                    "due_day": debt.due_day,
+                    "payoff_priority": debt.payoff_priority,
+                }
+                for debt in active_debts
+            ],
+        "income_items": income_plan["income_items"],
+        "expense_items": expense_plan["expense_items"],
     }

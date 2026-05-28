@@ -74,6 +74,14 @@ export interface MonthlyPlanResponse {
 
   expense_categories: MonthlyPlanExpenseCategory[];
   active_debts: MonthlyPlanDebtItem[];
+  income_regular: string;
+  income_irregular: string;
+
+  expenses_recurring: string;
+  expenses_one_time: string;
+
+  income_items: MonthlyPlanIncomeItem[];
+  expense_items: MonthlyPlanExpenseItem[];
 }
 
 export interface PlanningSettings {
@@ -82,4 +90,27 @@ export interface PlanningSettings {
   safetyBufferValue: number;
   strategyType: DebtStrategyType;
   maxMonths: number;
+}
+
+export type IncomeSourceType = "regular" | "irregular";
+export type ExpenseRecurrenceType = "none" | "monthly";
+export type ExpenseType = "mandatory" | "variable";
+
+export interface MonthlyPlanIncomeItem {
+  income_id: number;
+  category: string;
+  amount: string;
+  source_type: IncomeSourceType;
+  original_date: string;
+  comment: string | null;
+}
+
+export interface MonthlyPlanExpenseItem {
+  expense_id: number;
+  category: string;
+  amount: string;
+  expense_type: ExpenseType;
+  recurrence_type: ExpenseRecurrenceType;
+  original_date: string;
+  comment: string | null;
 }

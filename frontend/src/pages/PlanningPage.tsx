@@ -30,13 +30,6 @@ import type {
 import { formatDate, formatMoney, formatPercent } from "@/lib/format";
 import { buildMonthOptions } from "@/lib/month";
 
-const MONTH_OPTIONS = [
-  { label: "Январь 2026", value: "2026-01" },
-  { label: "Февраль 2026", value: "2026-02" },
-  { label: "Март 2026", value: "2026-03" },
-  { label: "Апрель 2026", value: "2026-04" },
-];
-
 const SAFETY_BUFFER_TYPE_OPTIONS = [
   { label: "% от дохода", value: "percent" },
   { label: "Фиксированная сумма", value: "fixed" },
@@ -46,6 +39,30 @@ const STRATEGY_OPTIONS = [
   { label: "Avalanche", value: "avalanche" },
   { label: "Snowball", value: "snowball" },
 ];
+
+function incomeSourceLabel(type: string): string {
+  if (type === "regular") {
+    return "Регулярный";
+  }
+
+  return "Нерегулярный";
+}
+
+function expenseRecurrenceLabel(type: string): string {
+  if (type === "monthly") {
+    return "Ежемесячный";
+  }
+
+  return "Разовый";
+}
+
+function expenseTypeLabel(type: string): string {
+  if (type === "mandatory") {
+    return "Обязательный";
+  }
+
+  return "Переменный";
+}
 
 function debtTypeLabel(type: string): string {
   const labels: Record<string, string> = {
@@ -374,6 +391,36 @@ export function PlanningPage() {
         />
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          title="Регулярные доходы"
+          value={formatMoney(plan.income_regular)}
+          description="Виртуально применены к месяцу"
+          icon={TrendingUp}
+        />
+
+        <MetricCard
+          title="Нерегулярные доходы"
+          value={formatMoney(plan.income_irregular)}
+          description="Фактические доходы месяца"
+          icon={TrendingUp}
+        />
+
+        <MetricCard
+          title="Ежемесячные расходы"
+          value={formatMoney(plan.expenses_recurring)}
+          description="Виртуально применены к месяцу"
+          icon={Receipt}
+        />
+
+        <MetricCard
+          title="Разовые расходы"
+          value={formatMoney(plan.expenses_one_time)}
+          description="Фактические расходы месяца"
+          icon={Receipt}
+        />
+      </div>
+
       {impact ? (
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
@@ -544,6 +591,127 @@ export function PlanningPage() {
             <EmptyState
               title="Нет сценария"
               description="Добавь активные долги, чтобы увидеть влияние recommended extra."
+            />
+          )}
+        </Card>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card>
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-slate-950">
+              Состав доходов
+            </h3>
+            <p className="text-sm text-slate-500">
+              Что формирует доходную часть выбранного месяца.
+            </p>
+          </div>
+
+          {plan.income_items.length > 0 ? (
+            <div className="space-y-3">
+              {plan.income_items.map((item) => (
+                <div
+                  key={`${item.source_type}-${item.income_id}`}
+                  className="rounded-2xl border border-slate-200 p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-950">
+                        {item.category}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {incomeSourceLabel(item.source_type)} · с{" "}
+                        {formatDate(item.original_date)}
+                      </div>
+                      {item.comment ? (
+                        <div className="mt-1 text-xs text-slate-500">
+                          {item.comment}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-slate-950">
+                        {formatMoney(item.amount)}
+                      </div>
+                      <div
+                        className={
+                          item.source_type === "regular"
+                            ? "mt-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"
+                            : "mt-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600"
+                        }
+                      >
+                        {incomeSourceLabel(item.source_type)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="Нет доходов"
+              description="Для выбранного месяца доходы не найдены."
+            />
+          )}
+        </Card>
+
+        <Card>
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-slate-950">
+              Состав расходов
+            </h3>
+            <p className="text-sm text-slate-500">
+              Что формирует расходную часть выбранного месяца.
+            </p>
+          </div>
+
+          {plan.expense_items.length > 0 ? (
+            <div className="space-y-3">
+              {plan.expense_items.map((item) => (
+                <div
+                  key={`${item.recurrence_type}-${item.expense_id}`}
+                  className="rounded-2xl border border-slate-200 p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-950">
+                        {item.category}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {expenseTypeLabel(item.expense_type)} ·{" "}
+                        {expenseRecurrenceLabel(item.recurrence_type)} · с{" "}
+                        {formatDate(item.original_date)}
+                      </div>
+                      {item.comment ? (
+                        <div className="mt-1 text-xs text-slate-500">
+                          {item.comment}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-slate-950">
+                        {formatMoney(item.amount)}
+                      </div>
+                      <div
+                        className={
+                          item.recurrence_type === "monthly"
+                            ? "mt-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700"
+                            : "mt-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600"
+                        }
+                      >
+                        {expenseRecurrenceLabel(item.recurrence_type)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="Нет расходов"
+              description="Для выбранного месяца расходы не найдены."
             />
           )}
         </Card>

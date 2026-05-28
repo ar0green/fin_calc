@@ -52,14 +52,37 @@ class MonthlyPlanScenarioImpact(BaseModel):
     interest_saved: Decimal | None
     total_paid_saved: Decimal | None
 
+class MonthlyPlanIncomeItem(BaseModel):
+    income_id: int
+    category: str
+    amount: Decimal
+    source_type: Literal["regular", "irregular"]
+    original_date: date
+    comment: str | None = None
 
+
+class MonthlyPlanExpenseItem(BaseModel):
+    expense_id: int
+    category: str
+    amount: Decimal
+    expense_type: Literal["mandatory", "variable"]
+    recurrence_type: Literal["none", "monthly"]
+    original_date: date
+    comment: str | None = None
+    
 class MonthlyPlanResponse(BaseModel):
     period: MonthlyPlanPeriod
 
     total_income: Decimal
+    income_regular: Decimal
+    income_irregular: Decimal
+
     mandatory_expenses: Decimal
     variable_expenses: Decimal
     total_expenses: Decimal
+    expenses_recurring: Decimal
+    expenses_one_time: Decimal
+
     minimum_debt_payments: Decimal
 
     free_cash: Decimal
@@ -82,3 +105,6 @@ class MonthlyPlanResponse(BaseModel):
 
     expense_categories: list[MonthlyPlanExpenseCategory]
     active_debts: list[MonthlyPlanDebtItem]
+
+    income_items: list[MonthlyPlanIncomeItem]
+    expense_items: list[MonthlyPlanExpenseItem]

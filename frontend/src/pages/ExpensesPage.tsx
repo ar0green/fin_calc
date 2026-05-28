@@ -293,6 +293,11 @@ export function ExpensesPage() {
               {...register("recurrence_type")}
             />
 
+            <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              Ежемесячные расходы учитываются в расчётах каждого месяца, начиная с месяца даты расхода.
+              Физические копии расходов в базе не создаются.
+            </div>
+
             <Input
               label="Комментарий"
               placeholder="Опционально"

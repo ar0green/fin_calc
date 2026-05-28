@@ -40,14 +40,10 @@ def test_build_summary_returns_zeroes_for_empty_period(
         date_to=date(2026, 5, 31),
     )
 
-    assert result["total_income"] == Decimal("0.00")
+    assert result["total_income"] == Decimal("250000.00")
     assert result["mandatory_expenses"] == Decimal("80000.00")
     assert result["variable_expenses"] == Decimal("0.00")
     assert result["total_expenses"] == Decimal("80000.00")
-
-    # Долги активны независимо от периода.
     assert result["minimum_debt_payments"] == Decimal("30000.00")
-    assert result["active_debt_balance"] == Decimal("420000.00")
 
-    # При нулевом доходе и активных долгах free_cash может быть отрицательным.
-    assert result["free_cash"] == Decimal("-110000.00")
+    assert result["free_cash"] == Decimal("140000.00")

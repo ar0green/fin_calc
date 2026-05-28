@@ -262,3 +262,78 @@ def expand_expenses_by_month(
                 )
 
     return result
+
+def build_expense_plan_items_for_period(
+    db: Session,
+    user_id: int,
+    *,
+    date_from: date,
+    date_to: date,
+) -> dict:
+    months = iter_month_starts(date_from, date_to)
+
+    expenses = get_effective_expenses_for_period(
+        db,
+        user_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+    recurring_total = Decimal("0")
+    one_time_total = Decimal("0")
+    items: list[dict] = []
+
+    for expense in expenses:
+        if expense.recurrence_type == "none":
+            amount = money(expense.amount)
+            one_time_total = money(one_time_total + amount)
+
+            items.append(
+                {
+                    "expense_id": expense.id,
+                    "category": expense.category,
+                    "amount": amount,
+                    "expense_type": expense.type,
+                    "recurrence_type": "none",
+                    "original_date": expense.date,
+                    "comment": expense.comment,
+                }
+            )
+
+            continue
+
+        if expense.recurrence_type == "monthly":
+            applicable_months = [
+                month for month in months if monthly_expense_applies_to_month(expense, month)
+            ]
+
+            if not applicable_months:
+                continue
+
+            amount = money(expense.amount * len(applicable_months))
+            recurring_total = money(recurring_total + amount)
+
+            items.append(
+                {
+                    "expense_id": expense.id,
+                    "category": expense.category,
+                    "amount": amount,
+                    "expense_type": expense.type,
+                    "recurrence_type": "monthly",
+                    "original_date": expense.date,
+                    "comment": expense.comment,
+                }
+            )
+
+    return {
+        "expenses_recurring": money(recurring_total),
+        "expenses_one_time": money(one_time_total),
+        "expense_items": sorted(
+            items,
+            key=lambda item: (
+                item["recurrence_type"],
+                item["expense_type"],
+                item["category"],
+            ),
+        ),
+    }

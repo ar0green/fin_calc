@@ -247,6 +247,11 @@ export function IncomesPage() {
               error={errors.type?.message}
               {...register("type")}
             />
+            
+            <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              Регулярные доходы учитываются в расчётах каждого месяца, начиная с месяца даты дохода.
+              Нерегулярные доходы учитываются только в месяце фактической даты.
+            </div>
 
             <Input
               label="Комментарий"

@@ -19,6 +19,8 @@ from app.services.recurring_expense_service import (
     month_start,
 )
 
+from app.services.recurring_expense_service import calculate_expense_categories_for_period
+from app.services.recurring_income_service import expand_incomes_by_month
 
 def _month_start(value: date) -> date:
     return date(value.year, value.month, 1)
@@ -128,31 +130,12 @@ def build_analytics_overview(
         date_to=date_to,
     )
 
-    expenses = _load_expenses(
+    top_expense_categories = calculate_expense_categories_for_period(
         db,
         user_id,
         date_from=date_from,
         date_to=date_to,
-    )
-
-    category_totals: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
-    for expense in expenses:
-        category_totals[expense.category] = money(category_totals[expense.category] + expense.amount)
-
-    total_expenses = money(summary["total_expenses"])
-
-    top_expense_categories = [
-        {
-            "category": category,
-            "amount": money(amount),
-            "percent": _percent(amount, total_expenses),
-        }
-        for category, amount in sorted(
-            category_totals.items(),
-            key=lambda item: item[1],
-            reverse=True,
-        )[:5]
-    ]
+    )[:5]
 
     active_debts = _load_active_debts(db, user_id)
     active_debt_count = len(active_debts)
@@ -181,23 +164,12 @@ def build_income_expense_by_month(
 ) -> dict:
     months = iter_month_starts(date_from, date_to)
 
-    incomes = list(
-        db.scalars(
-            select(Income).where(
-                Income.user_id == user_id,
-                Income.date >= date_from,
-                Income.date <= date_to,
-            )
-        ).all()
+    income_by_month = expand_incomes_by_month(
+        db,
+        user_id,
+        date_from=date_from,
+        date_to=date_to,
     )
-
-    income_by_month: dict[date, Decimal] = defaultdict(lambda: Decimal("0"))
-
-    for income in incomes:
-        income_month = month_start(income.date)
-        income_by_month[income_month] = money(
-            income_by_month[income_month] + income.amount
-        )
 
     expenses_by_month = expand_expenses_by_month(
         db,
@@ -209,7 +181,7 @@ def build_income_expense_by_month(
     items = []
 
     for month in months:
-        month_income = money(income_by_month[month])
+        month_income = money(income_by_month.get(month, Decimal("0")))
         month_expenses = money(
             expenses_by_month.get(month, {}).get("total_expenses", Decimal("0"))
         )
