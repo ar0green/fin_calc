@@ -91,6 +91,10 @@ class MonthlyPlanResponse(BaseModel):
     safety_buffer_type: SafetyBufferType
     safety_buffer_value: Decimal
     safety_buffer: Decimal
+    
+    budget_overrun_total: Decimal
+    recommended_extra_payment_before_budget_adjustment: Decimal
+    budget_adjustment_applied: bool
 
     recommended_extra_payment: Decimal
     remaining_after_recommended_extra_payment: Decimal

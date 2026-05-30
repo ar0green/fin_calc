@@ -61,6 +61,10 @@ export interface MonthlyPlanResponse {
   safety_buffer_value: string;
   safety_buffer: string;
 
+  budget_overrun_total: string;
+  recommended_extra_payment_before_budget_adjustment: string;
+  budget_adjustment_applied: boolean;
+
   recommended_extra_payment: string;
   remaining_after_recommended_extra_payment: string;
 

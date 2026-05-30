@@ -16,6 +16,7 @@ from app.services.recurring_expense_service import (
     build_expense_plan_items_for_period,
     calculate_expense_categories_for_period,
 )
+from app.services.category_budget_service import build_monthly_budget_summary
 
 
 DEFAULT_SAFETY_BUFFER_RATIO = Decimal("10")
@@ -44,6 +45,17 @@ def _percent(part: Decimal, total: Decimal) -> Decimal:
 
     return money((money(part) / total) * Decimal("100"))
 
+
+def _calculate_budget_overrun_total(monthly_budget_summary: dict) -> Decimal:
+    total = Decimal("0")
+
+    for item in monthly_budget_summary["items"]:
+        if not item["is_over_budget"]:
+            continue
+
+        total = money(total + abs(item["remaining_amount"]))
+
+    return money(total)
 
 def _calculate_safety_buffer(
     *,
@@ -249,7 +261,30 @@ def build_monthly_plan(
         safety_buffer_value=safety_buffer_value,
     )
 
-    recommended_extra_payment = money(max(free_cash - safety_buffer, Decimal("0")))
+    monthly_budget_summary = build_monthly_budget_summary(
+        db,
+        user_id,
+        month=month,
+    )
+
+    budget_overrun_total = _calculate_budget_overrun_total(monthly_budget_summary)
+
+    recommended_extra_payment_before_budget_adjustment = money(
+        max(free_cash - safety_buffer, Decimal("0"))
+    )
+
+    recommended_extra_payment = money(
+        max(
+            recommended_extra_payment_before_budget_adjustment - budget_overrun_total,
+            Decimal("0"),
+        )
+    )
+
+    budget_adjustment_applied = (
+        budget_overrun_total > 0
+        and recommended_extra_payment < recommended_extra_payment_before_budget_adjustment
+    )
+
     remaining_after_recommended_extra_payment = money(
         free_cash - recommended_extra_payment
     )
@@ -315,6 +350,9 @@ def build_monthly_plan(
         "safety_buffer_type": safety_buffer_type,
         "safety_buffer_value": money(safety_buffer_value),
         "safety_buffer": safety_buffer,
+        "budget_overrun_total": budget_overrun_total,
+        "recommended_extra_payment_before_budget_adjustment": recommended_extra_payment_before_budget_adjustment,
+        "budget_adjustment_applied": budget_adjustment_applied,
         "recommended_extra_payment": recommended_extra_payment,
         "remaining_after_recommended_extra_payment": remaining_after_recommended_extra_payment,
         "active_debt_balance": active_debt_balance,

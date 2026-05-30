@@ -619,6 +619,23 @@ export function PlanningPage() {
             </div>
           ) : null}
 
+          {plan.budget_adjustment_applied ? (
+            <div className="mb-4 rounded-2xl bg-blue-50 p-4 text-blue-900">
+              <div className="text-sm font-semibold">
+                Recommended extra payment скорректирован
+              </div>
+              <div className="mt-1 text-sm">
+                Без учёта бюджета рекомендация была бы{" "}
+                {formatMoney(
+                  plan.recommended_extra_payment_before_budget_adjustment,
+                )}
+                . Из-за превышения бюджета на{" "}
+                {formatMoney(plan.budget_overrun_total)} итоговая рекомендация
+                снижена до {formatMoney(plan.recommended_extra_payment)}.
+              </div>
+            </div>
+          ) : null}
+
           {hasPositiveFreeCash ? (
             <div className="space-y-4">
               {hasRecommendedExtra ? (
@@ -631,7 +648,16 @@ export function PlanningPage() {
                   </div>
                   <div className="mt-1 text-sm">
                     Эту сумму можно направить сверх минимальных платежей,
-                    оставив safety buffer {formatMoney(plan.safety_buffer)}.
+                    оставив safety buffer {formatMoney(plan.safety_buffer)}
+                    {plan.budget_adjustment_applied ? (
+                      <>
+                        {" "}
+                        и учитывая превышение бюджета{" "}
+                        {formatMoney(plan.budget_overrun_total)}.
+                      </>
+                    ) : (
+                      "."
+                    )}
                   </div>
                 </div>
               ) : (
@@ -742,6 +768,42 @@ export function PlanningPage() {
             />
           )}
         </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          title="Extra до бюджета"
+          value={formatMoney(
+            plan.recommended_extra_payment_before_budget_adjustment,
+          )}
+          description="Без учёта превышений бюджета"
+          icon={PiggyBank}
+        />
+
+        <MetricCard
+          title="Превышение бюджета"
+          value={formatMoney(plan.budget_overrun_total)}
+          description="Сумма перерасхода по лимитам"
+          icon={AlertTriangle}
+        />
+
+        <MetricCard
+          title="Extra после бюджета"
+          value={formatMoney(plan.recommended_extra_payment)}
+          description="Осторожная рекомендация"
+          icon={PiggyBank}
+        />
+
+        <MetricCard
+          title="Корректировка"
+          value={plan.budget_adjustment_applied ? "Применена" : "Нет"}
+          description={
+            plan.budget_adjustment_applied
+              ? "Extra payment уменьшен"
+              : "Превышений бюджета нет"
+          }
+          icon={plan.budget_adjustment_applied ? AlertTriangle : Wallet}
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
